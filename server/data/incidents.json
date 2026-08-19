@@ -1,0 +1,68 @@
+[
+  {
+    "id": "INC-1048",
+    "title": "Latência elevada no checkout",
+    "description": "A taxa de resposta do checkout ultrapassou 3 segundos em picos de tráfego.",
+    "severity": "high",
+    "status": "investigating",
+    "assignee": "Marina Costa",
+    "service": "Checkout",
+    "createdAt": "2026-08-18T22:47:10.837Z",
+    "updatedAt": "2026-08-19T00:47:10.837Z",
+    "slaHours": 8,
+    "comments": [
+      {
+        "id": "c-1048-1",
+        "author": "Marina Costa",
+        "body": "Logs indicam aumento de consultas lentas no catálogo.",
+        "createdAt": "2026-08-19T00:47:10.837Z"
+      }
+    ]
+  },
+  {
+    "id": "INC-1047",
+    "title": "Falha intermitente no envio de e-mails",
+    "description": "Mensagens transacionais estão sendo reprocessadas pela fila de notificações.",
+    "severity": "medium",
+    "status": "monitoring",
+    "assignee": "Rafael Lima",
+    "service": "Notifications",
+    "createdAt": "2026-08-18T09:47:10.837Z",
+    "updatedAt": "2026-08-18T21:47:10.837Z",
+    "slaHours": 24,
+    "comments": []
+  },
+  {
+    "id": "INC-1046",
+    "title": "Erro 500 na tela de relatórios",
+    "description": "Usuários administradores encontram erro ao exportar relatórios em CSV.",
+    "severity": "critical",
+    "status": "open",
+    "assignee": "João Mendes",
+    "service": "Reporting",
+    "createdAt": "2026-08-18T23:47:10.837Z",
+    "updatedAt": "2026-08-18T23:47:10.837Z",
+    "slaHours": 4,
+    "comments": []
+  },
+  {
+    "id": "INC-1045",
+    "title": "Atualização de domínio concluída",
+    "description": "A troca de domínio foi aplicada e validada em todos os ambientes.",
+    "severity": "low",
+    "status": "resolved",
+    "assignee": "Camila Alves",
+    "service": "Platform",
+    "createdAt": "2026-08-17T01:47:10.837Z",
+    "updatedAt": "2026-08-17T21:47:10.837Z",
+    "slaHours": 72,
+    "comments": [
+      {
+        "id": "c-1045-1",
+        "author": "Camila Alves",
+        "body": "Monitoramento concluído sem novas ocorrências.",
+        "createdAt": "2026-08-17T21:47:10.837Z"
+      }
+    ]
+  }
+]
