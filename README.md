@@ -129,3 +129,19 @@ A API também possui autenticação JWT para preparar o controle de acesso do pr
 Para demonstração local, a conta inicial é `demo@incidentboard.local` com a senha `incidentboard`. Essa credencial existe apenas para o ambiente de demonstração e deve ser alterada antes de qualquer publicação real. Em produção, defina uma variável `JWT_SECRET` longa e aleatória; o segredo padrão de desenvolvimento não deve ser utilizado.
 
 A tela de login já está conectada ao frontend, o token é mantido durante a sessão e as rotas de incidentes exigem autenticação. Como próximo incremento, podemos adicionar recuperação de senha, convite de usuários e permissões mais granulares por papel.
+
+## Arquitetura alvo em migração
+
+O projeto está sendo evoluído para uma arquitetura de produção. A configuração já inclui Docker Compose com PostgreSQL 17, Drizzle ORM com schema e migrations versionadas, React Router para rotas da interface, Zustand para estado de filtros e seleção e Tailwind CSS v4 integrado como plugin do Vite.
+
+Para ativar o PostgreSQL local, instale o Docker Desktop no Windows, copie `.env.example` para `.env` e execute:
+
+```bash
+npm run db:up
+npm run db:migrate
+npm run dev
+```
+
+Nesta etapa, o SQLite continua como fallback compatível para não interromper o desenvolvimento enquanto o Docker Desktop não estiver disponível. A migração completa do backend para PostgreSQL deve ser executada depois que o container estiver ativo.
+
+Os arquivos de migração ficam em `server/db/migrations`, o schema em `server/db/schema.ts` e a configuração em `drizzle.config.ts`. O banco PostgreSQL não deve receber credenciais reais no repositório; use `.env` local e mantenha apenas `.env.example` versionado.
