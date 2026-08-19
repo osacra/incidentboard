@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
+import { api } from './api'
 import { formatDate, getSlaState, loadIncidents, nextIncidentId, saveIncidents } from './storage'
 import type { Incident, IncidentFilters, IncidentSeverity, IncidentStatus } from './types'
 import { severityLabels, statusLabels } from './types'
@@ -15,7 +16,20 @@ function App() {
   const [selectedId, setSelectedId] = useState<string | null>(incidents[0]?.id ?? null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [toast, setToast] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [apiConnected, setApiConnected] = useState(false)
   const selectedIncident = incidents.find((incident) => incident.id === selectedId) ?? null
+
+  useEffect(() => {
+    let active = true
+    api.listIncidents().then((remoteIncidents) => {
+      if (!active) return
+      setIncidents(remoteIncidents)
+      setSelectedId(remoteIncidents[0]?.id ?? null)
+      setApiConnected(true)
+    }).catch(() => setApiConnected(false)).finally(() => active && setIsLoading(false))
+    return () => { active = false }
+  }, [])
 
   const filteredIncidents = useMemo(() => incidents.filter((incident) => {
     const text = `${incident.id} ${incident.title} ${incident.description} ${incident.assignee}`.toLowerCase()
@@ -34,29 +48,31 @@ function App() {
 
   const updateIncidents = (next: Incident[]) => { setIncidents(next); saveIncidents(next) }
   const showToast = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2800) }
-  const updateIncident = (id: string, changes: Partial<Incident>) => {
-    updateIncidents(incidents.map((incident) => incident.id === id ? { ...incident, ...changes, updatedAt: new Date().toISOString() } : incident))
-    showToast('Incidente atualizado')
+  const updateIncident = async (id: string, changes: Partial<Incident>) => {
+    try {
+      const updated = apiConnected ? await api.updateIncident(id, changes) : { ...incidents.find((incident) => incident.id === id)!, ...changes, updatedAt: new Date().toISOString() }
+      updateIncidents(incidents.map((incident) => incident.id === id ? updated : incident))
+      showToast('Incidente atualizado')
+    } catch (error) { showToast(error instanceof Error ? error.message : 'Não foi possível atualizar o incidente') }
   }
 
-  const createIncident = (event: FormEvent<HTMLFormElement>) => {
+  const createIncident = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
-    const now = new Date().toISOString()
-    const incident: Incident = {
-      id: nextIncidentId(incidents), title: String(formData.get('title') ?? ''), description: String(formData.get('description') ?? ''),
-      severity: String(formData.get('severity') ?? 'medium') as IncidentSeverity, status: 'open',
-      assignee: String(formData.get('assignee') ?? assignees[0]), service: String(formData.get('service') ?? services[0]),
-      createdAt: now, updatedAt: now, slaHours: Number(formData.get('slaHours') ?? 24), comments: [],
-    }
-    updateIncidents([incident, ...incidents]); setSelectedId(incident.id); setIsModalOpen(false); event.currentTarget.reset(); showToast(`${incident.id} criado com sucesso`)
+    const payload = { title: String(formData.get('title') ?? ''), description: String(formData.get('description') ?? ''), severity: String(formData.get('severity') ?? 'medium') as IncidentSeverity, assignee: String(formData.get('assignee') ?? assignees[0]), service: String(formData.get('service') ?? services[0]), slaHours: Number(formData.get('slaHours') ?? 24) }
+    try {
+      const incident: Incident = apiConnected ? await api.createIncident(payload) : { id: nextIncidentId(incidents), ...payload, status: 'open', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), comments: [] }
+      updateIncidents([incident, ...incidents]); setSelectedId(incident.id); setIsModalOpen(false); event.currentTarget.reset(); showToast(`${incident.id} criado com sucesso`)
+    } catch (error) { showToast(error instanceof Error ? error.message : 'Não foi possível criar o incidente') }
   }
 
-  const addComment = (event: FormEvent<HTMLFormElement>) => {
+  const addComment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); if (!selectedIncident) return
     const body = String(new FormData(event.currentTarget).get('comment') ?? '').trim(); if (!body) return
-    updateIncident(selectedIncident.id, { comments: [...selectedIncident.comments, { id: crypto.randomUUID(), author: 'Você', body, createdAt: new Date().toISOString() }] })
-    event.currentTarget.reset()
+    try {
+      const updated = apiConnected ? await api.addComment(selectedIncident.id, { body, author: 'Você' }) : { ...selectedIncident, comments: [...selectedIncident.comments, { id: crypto.randomUUID(), author: 'Você', body, createdAt: new Date().toISOString() }] }
+      updateIncidents(incidents.map((incident) => incident.id === updated.id ? updated : incident)); event.currentTarget.reset(); showToast('Comentário adicionado')
+    } catch (error) { showToast(error instanceof Error ? error.message : 'Não foi possível adicionar o comentário') }
   }
 
   return <div className="app-shell">
@@ -69,7 +85,7 @@ function App() {
     <main className="main-content">
       <header className="topbar"><div className="breadcrumb"><span>Workspace</span><span>/</span><strong>Visão geral</strong></div><div className="top-actions"><button className="icon-button" aria-label="Pesquisar">⌕</button><button className="icon-button notification" aria-label="Notificações">♢<i /></button><button className="avatar avatar-purple">AS</button></div></header>
       <div className="page-content">
-        <section className="page-heading"><div><p className="eyebrow">QUARTA-FEIRA, 18 DE JUNHO DE 2025</p><h1>Visão geral</h1><p className="heading-subtitle">Acompanhe a saúde dos seus serviços em tempo real.</p></div><button className="primary-button" onClick={() => setIsModalOpen(true)}><span>＋</span> Novo incidente</button></section>
+        <section className="page-heading"><div><p className="eyebrow">QUARTA-FEIRA, 18 DE JUNHO DE 2025</p><h1>Visão geral</h1><p className="heading-subtitle">Acompanhe a saúde dos seus serviços em tempo real.</p><span className={`connection-status ${isLoading ? 'loading' : apiConnected ? 'online' : 'offline'}`}><i />{isLoading ? 'Conectando à API...' : apiConnected ? 'API conectada · dados sincronizados' : 'Modo demonstração · API offline'}</span></div><button className="primary-button" onClick={() => setIsModalOpen(true)}><span>＋</span> Novo incidente</button></section>
         <section className="metric-grid" aria-label="Resumo de incidentes"><MetricCard label="Incidentes ativos" value={metrics.active} trend="12%" trendPositive={false} detail="vs. semana anterior" icon="◈" tone="blue" /><MetricCard label="Severidade crítica" value={metrics.critical} trend="8%" trendPositive={true} detail="vs. semana anterior" icon="⚠" tone="red" /><MetricCard label="Em monitoramento" value={metrics.monitoring} trend="24%" trendPositive={true} detail="vs. semana anterior" icon="◉" tone="amber" /><MetricCard label="Resolvidos" value={metrics.resolved} trend="18%" trendPositive={true} detail="vs. semana anterior" icon="✓" tone="green" /></section>
         <section className="content-grid">
           <div className="incidents-panel panel-card"><div className="panel-heading"><div><h2>Incidentes recentes</h2><p>Gerencie e acompanhe os incidentes ativos.</p></div><button className="ghost-button">Ver todos <span>→</span></button></div><div className="filter-bar"><label className="search-field"><span>⌕</span><input value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} placeholder="Buscar incidentes..." /></label><select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value as IncidentFilters['status'] })}><option value="all">Todos os status</option>{Object.entries(statusLabels).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select><select value={filters.severity} onChange={(event) => setFilters({ ...filters, severity: event.target.value as IncidentFilters['severity'] })}><option value="all">Todas severidades</option>{Object.entries(severityLabels).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></div><div className="table-wrap"><table><thead><tr><th>Incidente</th><th>Serviço</th><th>Severidade</th><th>Status</th><th>Responsável</th><th>SLA</th></tr></thead><tbody>{filteredIncidents.map((incident) => <IncidentRow key={incident.id} incident={incident} selected={incident.id === selectedId} onClick={() => setSelectedId(incident.id)} />)}</tbody></table>{filteredIncidents.length === 0 && <div className="empty-state"><span>⌕</span><strong>Nenhum incidente encontrado</strong><small>Tente ajustar os filtros de busca.</small></div>}</div><div className="table-footer"><span>Mostrando <strong>{filteredIncidents.length}</strong> de {incidents.length} incidentes</span><div className="pagination"><button disabled>←</button><button className="page-current">1</button><button disabled>→</button></div></div></div>
