@@ -68,9 +68,9 @@ function App() {
   const updateIncidents = (next: Incident[]) => { setIncidents(next); saveIncidents(next) }
   const login = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setLoginError('')
-    try { const result = await api.login(loginEmail, loginPassword); session.setToken(result.token); setUser(result.user); const remoteIncidents = await api.listIncidents(); setIncidents(remoteIncidents); setSelectedId(remoteIncidents[0]?.id ?? null); setApiConnected(true); showToast('Sessão iniciada') } catch (error) { setLoginError(error instanceof Error ? error.message : 'Não foi possível entrar') }
+    try { const result = await api.login(loginEmail, loginPassword); session.setSession(result); setUser(result.user); const remoteIncidents = await api.listIncidents(); setIncidents(remoteIncidents); setSelectedId(remoteIncidents[0]?.id ?? null); setApiConnected(true); showToast('Sessão iniciada') } catch (error) { setLoginError(error instanceof Error ? error.message : 'Não foi possível entrar') }
   }
-  const logout = () => { session.clear(); setUser(null); showToast('Sessão encerrada') }
+  const logout = async () => { await api.logout().catch(() => undefined); setUser(null); showToast('Sessão encerrada') }
   const showToast = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2800) }
   const updateIncident = async (id: string, changes: Partial<Incident>) => {
     try {

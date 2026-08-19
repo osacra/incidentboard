@@ -27,6 +27,15 @@ export const incidents = pgTable('incidents', {
   slaHours: integer('sla_hours').notNull().default(24),
 })
 
+export const refreshTokens = pgTable('refresh_tokens', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  tokenHash: text('token_hash').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+})
+
 export const comments = pgTable('comments', {
   id: uuid('id').defaultRandom().primaryKey(),
   incidentId: uuid('incident_id').notNull().references(() => incidents.id, { onDelete: 'cascade' }),

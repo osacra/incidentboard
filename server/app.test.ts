@@ -15,7 +15,23 @@ describe('IncidentBoard API', () => {
     const response = await request(app).post('/api/auth/login').send({ email: 'demo@incidentboard.local', password: 'incidentboard' })
     expect(response.status).toBe(200)
     expect(response.body.token).toEqual(expect.any(String))
+    expect(response.body.refreshToken).toEqual(expect.any(String))
     expect(response.body.user.role).toBe('admin')
+  })
+
+  it('rotaciona e revoga refresh tokens', async () => {
+    const login = await request(app).post('/api/auth/login').send({ email: 'demo@incidentboard.local', password: 'incidentboard' })
+    const firstRefreshToken = login.body.refreshToken as string
+    const rotated = await request(app).post('/api/auth/refresh').send({ refreshToken: firstRefreshToken })
+    expect(rotated.status).toBe(200)
+    expect(rotated.body.token).toEqual(expect.any(String))
+    expect(rotated.body.refreshToken).toEqual(expect.any(String))
+    const reused = await request(app).post('/api/auth/refresh').send({ refreshToken: firstRefreshToken })
+    expect(reused.status).toBe(401)
+    const logout = await request(app).post('/api/auth/logout').send({ refreshToken: rotated.body.refreshToken })
+    expect(logout.status).toBe(204)
+    const afterLogout = await request(app).post('/api/auth/refresh').send({ refreshToken: rotated.body.refreshToken })
+    expect(afterLogout.status).toBe(401)
   })
 
   it('recusa credenciais inválidas', async () => {

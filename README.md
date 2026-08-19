@@ -113,3 +113,9 @@ Planned improvements include:
 3. Add notifications, webhooks and operational observability.
 4. Add pagination, sorting and report export.
 5. Configure continuous integration for lint, tests and build.
+
+## Sessões e autorização
+
+O login emite um access token JWT de curta duração e um refresh token opaco armazenado com hash no PostgreSQL. O frontend renova automaticamente a sessão quando uma chamada autenticada retorna `401`. Refresh tokens são rotacionados a cada uso e podem ser revogados no logout.
+
+A API possui três papéis: `admin`, `operator` e `viewer`. Leitura de incidentes exige autenticação; criação, edição, alteração de status e comentários exigem `admin` ou `operator`. O papel `viewer` fica restrito à leitura. Em produção, o segredo JWT deve ser longo, aleatório e fornecido exclusivamente por variável de ambiente.

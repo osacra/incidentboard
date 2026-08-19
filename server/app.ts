@@ -1,7 +1,7 @@
 import cors from 'cors'
 import express from 'express'
 import type { Incident, IncidentComment, IncidentSeverity, IncidentStatus } from '../src/types'
-import { authenticate, createToken, requireAuth } from './auth'
+import { authenticate, createAccessToken, createRefreshToken, requireAuth, requireRole, revokeRefreshToken, rotateRefreshToken } from './auth'
 import { getIncident, getIncidents, saveIncidents } from './store'
 
 export const createApp = () => {
@@ -19,12 +19,27 @@ export const createApp = () => {
     try {
       const user = await authenticate(email, password)
       if (!user) return response.status(401).json({ message: 'Credenciais inválidas.' })
-      return response.json({ token: createToken(user), user })
+      return response.json({ token: createAccessToken(user), refreshToken: await createRefreshToken(user), user })
     } catch (error) { return next(error) }
+  })
+
+  app.post('/api/auth/refresh', async (request, response, next) => {
+    try {
+      const result = await rotateRefreshToken(String(request.body?.refreshToken ?? ''))
+      if (!result) return response.status(401).json({ message: 'Refresh token inválido ou expirado.' })
+      return response.json(result)
+    } catch (error) { return next(error) }
+  })
+
+  app.post('/api/auth/logout', async (request, response, next) => {
+    try { await revokeRefreshToken(String(request.body?.refreshToken ?? '')); return response.status(204).send() } catch (error) { return next(error) }
   })
 
   app.get('/api/auth/me', requireAuth, (_request, response) => response.json(response.locals.user))
   app.use('/api/incidents', requireAuth)
+  app.patch('/api/incidents/:id', requireRole('admin', 'operator'))
+  app.post('/api/incidents', requireRole('admin', 'operator'))
+  app.post('/api/incidents/:id/comments', requireRole('admin', 'operator'))
 
   app.get('/api/incidents', async (_request, response, next) => {
     try { response.json(await getIncidents()) } catch (error) { next(error) }
