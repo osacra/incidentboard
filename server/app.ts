@@ -1,6 +1,7 @@
 import cors from 'cors'
 import express from 'express'
 import type { Incident, IncidentComment, IncidentSeverity, IncidentStatus } from '../src/types'
+import { authenticate, createToken, requireAuth } from './auth'
 import { getIncident, getIncidents, saveIncidents } from './store'
 
 export const createApp = () => {
@@ -11,6 +12,16 @@ export const createApp = () => {
   app.use(cors())
   app.use(express.json())
   app.get('/api/health', (_request, response) => response.json({ status: 'ok', service: 'incidentboard-api' }))
+
+  app.post('/api/auth/login', (request, response) => {
+    const { email, password } = request.body as { email?: string; password?: string }
+    if (!email || !password) return response.status(400).json({ message: 'E-mail e senha são obrigatórios.' })
+    const user = authenticate(email, password)
+    if (!user) return response.status(401).json({ message: 'Credenciais inválidas.' })
+    return response.json({ token: createToken(user), user })
+  })
+
+  app.get('/api/auth/me', requireAuth, (_request, response) => response.json(response.locals.user))
 
   app.get('/api/incidents', async (_request, response, next) => {
     try { response.json(await getIncidents()) } catch (error) { next(error) }
