@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"tsx server/index.ts\"",
     "dev:api": "tsx server/index.ts",
-    "dev:full": "concurrently \"npm run dev\" \"npm run dev:api\"",
+    "dev:full": "npm run dev",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",

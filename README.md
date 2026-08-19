@@ -93,23 +93,19 @@ A API persiste os dados em SQLite no arquivo local `server/data/incidentboard.sq
 
 ### Executar frontend e API
 
-Para executar apenas a interface:
+Para executar frontend e API juntos, use o comando padrão:
 
 ```bash
 npm run dev
 ```
 
-Para executar apenas a API:
+O Vite ficará disponível normalmente em `http://localhost:5173` e a API em `http://localhost:3001`. Para executar somente a API, use:
 
 ```bash
 npm run dev:api
 ```
 
-Para executar os dois processos ao mesmo tempo:
-
-```bash
-npm run dev:full
-```
+O comando `npm run dev:full` também está disponível como atalho equivalente a `npm run dev`.
 
 A API aceita a variável `API_PORT`, com valor padrão `3001`. O frontend aceita `VITE_API_URL` quando a API estiver hospedada em outro endereço.
 
