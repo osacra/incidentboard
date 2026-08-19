@@ -9,9 +9,29 @@ on:
 permissions:
   contents: read
 
+env:
+  DATABASE_URL: postgresql://incidentboard:incidentboard_dev@localhost:5432/incidentboard
+  JWT_SECRET: ci-only-secret-do-not-use-in-production
+  NODE_ENV: test
+
 jobs:
   quality:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: incidentboard
+          POSTGRES_USER: incidentboard
+          POSTGRES_PASSWORD: incidentboard_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U incidentboard -d incidentboard"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout
@@ -25,6 +45,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Apply database migrations
+        run: npm run db:migrate
 
       - name: Lint
         run: npm run lint
