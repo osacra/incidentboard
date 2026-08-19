@@ -4,6 +4,12 @@ IncidentBoard is an operational dashboard for engineering teams to register, pri
 
 > **Portfolio project:** the current version is designed to demonstrate domain modeling, full-stack TypeScript, authentication, persistence, business rules, responsive UI and automated tests.
 
+## Preview
+
+![IncidentBoard login screen](docs/screenshots/login.webp)
+
+The preview shows the access screen of the MVP. The local API is intentionally started as a separate process, so the interface can also be inspected independently from the persistence layer. Demo credentials are for local development only and must never be reused in production.
+
 ## Why this project exists
 
 Incident response requires more than a CRUD screen. Teams need to understand which incidents are critical, who owns them, whether an SLA is at risk and what actions have already been taken. IncidentBoard centralizes those signals in a workflow that is easy to inspect and extend.
