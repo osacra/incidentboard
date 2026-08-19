@@ -132,4 +132,4 @@ A API também possui autenticação JWT para preparar o controle de acesso do pr
 
 Para demonstração local, a conta inicial é `demo@incidentboard.local` com a senha `incidentboard`. Essa credencial existe apenas para o ambiente de demonstração e deve ser alterada antes de qualquer publicação real. Em produção, defina uma variável `JWT_SECRET` longa e aleatória; o segredo padrão de desenvolvimento não deve ser utilizado.
 
-A próxima etapa de segurança será conectar a tela de login ao frontend e aplicar o middleware de autenticação às operações de incidentes, além de adicionar papéis de administrador e operador.
+A tela de login já está conectada ao frontend, o token é mantido durante a sessão e as rotas de incidentes exigem autenticação. Como próximo incremento, podemos adicionar recuperação de senha, convite de usuários e permissões mais granulares por papel.
