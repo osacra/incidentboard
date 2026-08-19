@@ -89,7 +89,7 @@ O repositório utiliza commits convencionais e separados por responsabilidade. O
 
 A aplicação agora possui um frontend React e uma API Express local. Durante o desenvolvimento, o frontend tenta carregar os dados pela API em `http://localhost:3001/api`. Se a API estiver indisponível, a interface entra automaticamente em modo demonstração usando `localStorage`, permitindo continuar a explorar o produto.
 
-A API persiste os dados em `server/data/incidents.json` nesta primeira etapa. A camada fica isolada em `server/store.ts` para facilitar a substituição futura por PostgreSQL sem alterar os endpoints ou os componentes da interface.
+A API persiste os dados em SQLite no arquivo local `server/data/incidentboard.sqlite`. O schema é criado automaticamente pelo backend, e a camada fica isolada em `server/store.ts` para facilitar a migração futura para PostgreSQL sem alterar os endpoints ou os componentes da interface.
 
 ### Executar frontend e API
 
@@ -124,4 +124,4 @@ A API aceita a variável `API_PORT`, com valor padrão `3001`. O frontend aceita
 | `PATCH` | `/api/incidents/:id` | Atualizar status, severidade, responsável ou serviço. |
 | `POST` | `/api/incidents/:id/comments` | Adicionar comentário ao histórico. |
 
-Os testes podem ser executados com `npm run test`. Eles cobrem as regras de SLA, a geração de identificadores, o health check, as validações de payload e a consulta de incidentes pela API.
+Os testes podem ser executados com `npm run test`. Eles cobrem as regras de SLA, a geração de identificadores, o health check, as validações de payload e a consulta de incidentes pela API. O arquivo SQLite é ignorado pelo Git para que cada ambiente possa criar seu próprio banco local a partir do schema e dos dados de demonstração.
