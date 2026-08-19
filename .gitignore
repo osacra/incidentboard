@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local database
+server/data/*.sqlite
+server/data/*.sqlite-shm
+server/data/*.sqlite-wal
