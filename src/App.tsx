@@ -27,6 +27,7 @@ function App() {
   const [loginEmail, setLoginEmail] = useState('demo@incidentboard.local')
   const [loginPassword, setLoginPassword] = useState('incidentboard')
   const [loginError, setLoginError] = useState('')
+  const [recoveryMessage, setRecoveryMessage] = useState('')
   const navigate = useNavigate()
   const location = useLocation()
   const { incidentId } = useParams<{ incidentId: string }>()
@@ -71,6 +72,17 @@ function App() {
     try { const result = await api.login(loginEmail, loginPassword); session.setSession(result); setUser(result.user); const remoteIncidents = await api.listIncidents(); setIncidents(remoteIncidents); setSelectedId(remoteIncidents[0]?.id ?? null); setApiConnected(true); showToast('Sessão iniciada') } catch (error) { setLoginError(error instanceof Error ? error.message : 'Não foi possível entrar') }
   }
   const logout = async () => { await api.logout().catch(() => undefined); setUser(null); showToast('Sessão encerrada') }
+  const forgotPassword = async () => {
+    setLoginError(''); setRecoveryMessage('')
+    try {
+      const result = await api.forgotPassword(loginEmail)
+      if (result.resetToken) {
+        setRecoveryMessage(`Token local gerado: ${result.resetToken}`)
+      } else {
+        setRecoveryMessage(result.message)
+      }
+    } catch (error) { setLoginError(error instanceof Error ? error.message : 'Não foi possível gerar a recuperação') }
+  }
   const showToast = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2800) }
   const updateIncident = async (id: string, changes: Partial<Incident>) => {
     try {
@@ -99,7 +111,7 @@ function App() {
     } catch (error) { showToast(error instanceof Error ? error.message : 'Não foi possível adicionar o comentário') }
   }
 
-  if (!user) return <LoginScreen email={loginEmail} password={loginPassword} error={loginError} onEmailChange={setLoginEmail} onPasswordChange={setLoginPassword} onSubmit={login} />
+  if (!user) return <LoginScreen email={loginEmail} password={loginPassword} error={loginError} recoveryMessage={recoveryMessage} onEmailChange={setLoginEmail} onPasswordChange={setLoginPassword} onSubmit={login} onForgotPassword={forgotPassword} />
 
   return <div className="app-shell">
     <aside className="sidebar">

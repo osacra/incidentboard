@@ -1,7 +1,10 @@
 import cors from 'cors'
 import express from 'express'
 import type { Incident, IncidentComment, IncidentSeverity, IncidentStatus } from '../src/types'
-import { authenticate, createAccessToken, createRefreshToken, requireAuth, requireRole, revokeRefreshToken, rotateRefreshToken } from './auth'
+import { authenticate, createAccessToken, createRefreshToken, requestPasswordReset, requireAuth, requireRole, resetPassword, revokeRefreshToken, rotateRefreshToken } from './auth'
+import { eq } from 'drizzle-orm'
+import { users } from './db/schema'
+import { db, ensureStore } from './store'
 import { getIncident, getIncidents, saveIncidents } from './store'
 
 export const createApp = () => {
@@ -35,7 +38,47 @@ export const createApp = () => {
     try { await revokeRefreshToken(String(request.body?.refreshToken ?? '')); return response.status(204).send() } catch (error) { return next(error) }
   })
 
+  app.post('/api/auth/forgot-password', async (request, response, next) => {
+    const { email } = request.body as { email?: string }
+    if (!email?.trim()) return response.status(400).json({ message: 'E-mail é obrigatório.' })
+    try {
+      const token = await requestPasswordReset(email)
+      const payload: { message: string; resetToken?: string } = { message: 'Se o e-mail existir, as instruções de recuperação foram geradas.' }
+      if (token && process.env.NODE_ENV !== 'production') payload.resetToken = token
+      return response.status(202).json(payload)
+    } catch (error) { return next(error) }
+  })
+
+  app.post('/api/auth/reset-password', async (request, response, next) => {
+    const { token, password } = request.body as { token?: string; password?: string }
+    if (!token || !password || password.length < 8) return response.status(400).json({ message: 'Token e senha com pelo menos 8 caracteres são obrigatórios.' })
+    try {
+      const changed = await resetPassword(token, password)
+      return changed ? response.status(204).send() : response.status(400).json({ message: 'Token inválido ou expirado.' })
+    } catch (error) { return next(error) }
+  })
+
   app.get('/api/auth/me', requireAuth, (_request, response) => response.json(response.locals.user))
+
+  app.get('/api/users', requireAuth, requireRole('admin'), async (_request, response, next) => {
+    try {
+      await ensureStore()
+      const records = await db.select({ id: users.id, email: users.email, name: users.name, role: users.role, createdAt: users.createdAt }).from(users)
+      return response.json(records)
+    } catch (error) { return next(error) }
+  })
+
+  app.patch('/api/users/:id/role', requireAuth, requireRole('admin'), async (request, response, next) => {
+    const role = request.body?.role as string
+    if (!['admin', 'operator', 'viewer'].includes(role)) return response.status(400).json({ message: 'Papel inválido.' })
+    try {
+      await ensureStore()
+      const records = await db.update(users).set({ role: role as 'admin' | 'operator' | 'viewer', updatedAt: new Date() }).where(eq(users.id, Number(request.params.id))).returning({ id: users.id, email: users.email, name: users.name, role: users.role, createdAt: users.createdAt })
+      if (!records[0]) return response.status(404).json({ message: 'Usuário não encontrado.' })
+      return response.json(records[0])
+    } catch (error) { return next(error) }
+  })
+
   app.use('/api/incidents', requireAuth)
   app.patch('/api/incidents/:id', requireRole('admin', 'operator'))
   app.post('/api/incidents', requireRole('admin', 'operator'))

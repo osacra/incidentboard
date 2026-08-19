@@ -5,7 +5,8 @@ const TOKEN_KEY = 'incidentboard:token'
 const REFRESH_TOKEN_KEY = 'incidentboard:refresh-token'
 
 export type AuthUser = { id: number; email: string; name: string; role: 'admin' | 'operator' | 'viewer' }
-type AuthResponse = { token: string; refreshToken: string; user: AuthUser }
+export type AuthResponse = { token: string; refreshToken: string; user: AuthUser }
+export type ManagedUser = AuthUser & { createdAt: string }
 
 export const session = {
   getToken: () => window.localStorage.getItem(TOKEN_KEY),
@@ -49,6 +50,10 @@ export const api = {
   refresh: refreshSession,
   logout: async () => { const refreshToken = session.getRefreshToken(); session.clear(); if (refreshToken) await request<void>('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }, false) },
   me: () => request<AuthUser>('/auth/me'),
+  forgotPassword: (email: string) => request<{ message: string; resetToken?: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: (token: string, password: string) => request<void>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
+  listUsers: () => request<ManagedUser[]>('/users'),
+  updateUserRole: (id: number, role: ManagedUser['role']) => request<ManagedUser>(`/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
   listIncidents: () => request<Incident[]>('/incidents'),
   createIncident: (payload: Pick<Incident, 'title' | 'description' | 'severity' | 'assignee' | 'service' | 'slaHours'>) => request<Incident>('/incidents', { method: 'POST', body: JSON.stringify(payload) }),
   updateIncident: (id: string, payload: Partial<Pick<Incident, 'status' | 'severity' | 'assignee' | 'service'>>) => request<Incident>(`/incidents/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),

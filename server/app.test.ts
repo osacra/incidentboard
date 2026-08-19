@@ -34,6 +34,30 @@ describe('IncidentBoard API', () => {
     expect(afterLogout.status).toBe(401)
   })
 
+  it('gera e consome token de recuperação de senha local', async () => {
+    const forgot = await request(app).post('/api/auth/forgot-password').send({ email: 'demo@incidentboard.local' })
+    expect(forgot.status).toBe(202)
+    expect(forgot.body.resetToken).toEqual(expect.any(String))
+    const reset = await request(app).post('/api/auth/reset-password').send({ token: forgot.body.resetToken, password: 'temporary-password' })
+    expect(reset.status).toBe(204)
+    const temporaryLogin = await request(app).post('/api/auth/login').send({ email: 'demo@incidentboard.local', password: 'temporary-password' })
+    expect(temporaryLogin.status).toBe(200)
+    const restore = await request(app).post('/api/auth/forgot-password').send({ email: 'demo@incidentboard.local' })
+    const restored = await request(app).post('/api/auth/reset-password').send({ token: restore.body.resetToken, password: 'incidentboard' })
+    expect(restored.status).toBe(204)
+  })
+
+  it('permite ao administrador listar usuários e alterar papéis', async () => {
+    const login = await request(app).post('/api/auth/login').send({ email: 'demo@incidentboard.local', password: 'incidentboard' })
+    const token = login.body.token as string
+    const list = await request(app).get('/api/users').set('Authorization', `Bearer ${token}`)
+    expect(list.status).toBe(200)
+    expect(list.body[0]).not.toHaveProperty('passwordHash')
+    const updated = await request(app).patch('/api/users/1/role').set('Authorization', `Bearer ${token}`).send({ role: 'admin' })
+    expect(updated.status).toBe(200)
+    expect(updated.body.role).toBe('admin')
+  })
+
   it('recusa credenciais inválidas', async () => {
     const response = await request(app).post('/api/auth/login').send({ email: 'demo@incidentboard.local', password: 'errada' })
     expect(response.status).toBe(401)
