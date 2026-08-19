@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
-import { api } from './api'
+import { api, session } from './api'
+import type { AuthUser } from './api'
 import { formatDate, getSlaState, loadIncidents, nextIncidentId, saveIncidents } from './storage'
 import type { Incident, IncidentFilters, IncidentSeverity, IncidentStatus } from './types'
 import { severityLabels, statusLabels } from './types'
@@ -18,7 +19,16 @@ function App() {
   const [toast, setToast] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [apiConnected, setApiConnected] = useState(false)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [loginEmail, setLoginEmail] = useState('demo@incidentboard.local')
+  const [loginPassword, setLoginPassword] = useState('incidentboard')
+  const [loginError, setLoginError] = useState('')
   const selectedIncident = incidents.find((incident) => incident.id === selectedId) ?? null
+
+  useEffect(() => {
+    const token = session.getToken()
+    if (token) api.me().then(setUser).catch(() => session.clear())
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -47,6 +57,11 @@ function App() {
   }), [incidents])
 
   const updateIncidents = (next: Incident[]) => { setIncidents(next); saveIncidents(next) }
+  const login = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setLoginError('')
+    try { const result = await api.login(loginEmail, loginPassword); session.setToken(result.token); setUser(result.user); const remoteIncidents = await api.listIncidents(); setIncidents(remoteIncidents); setSelectedId(remoteIncidents[0]?.id ?? null); setApiConnected(true); showToast('Sessão iniciada') } catch (error) { setLoginError(error instanceof Error ? error.message : 'Não foi possível entrar') }
+  }
+  const logout = () => { session.clear(); setUser(null); showToast('Sessão encerrada') }
   const showToast = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2800) }
   const updateIncident = async (id: string, changes: Partial<Incident>) => {
     try {
@@ -75,12 +90,14 @@ function App() {
     } catch (error) { showToast(error instanceof Error ? error.message : 'Não foi possível adicionar o comentário') }
   }
 
+  if (!user) return <LoginScreen email={loginEmail} password={loginPassword} error={loginError} onEmailChange={setLoginEmail} onPasswordChange={setLoginPassword} onSubmit={login} />
+
   return <div className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">◆</span><span>Incident<span className="brand-accent">Board</span></span></div>
       <div className="workspace-switcher"><span className="workspace-icon">N</span><span><strong>Northstar Engineering</strong><small>Workspace principal</small></span><span className="chevron">⌄</span></div>
       <nav className="main-nav" aria-label="Navegação principal"><p className="nav-label">Workspace</p><button className="nav-item active"><span>▦</span> Visão geral</button><button className="nav-item"><span>◈</span> Incidentes <b>{metrics.active}</b></button><button className="nav-item"><span>◷</span> Serviços</button><button className="nav-item"><span>⌁</span> Relatórios</button><p className="nav-label second">Gerenciar</p><button className="nav-item"><span>♙</span> Equipe</button><button className="nav-item"><span>⚙</span> Configurações</button></nav>
-      <div className="sidebar-footer"><div className="help-card"><span className="help-icon">?</span><div><strong>Precisa de ajuda?</strong><small>Consulte a documentação</small></div></div><div className="profile"><span className="avatar avatar-purple">AS</span><span><strong>Arthur Sacramento</strong><small>Administrador</small></span><span className="more">•••</span></div></div>
+      <div className="sidebar-footer"><div className="help-card"><span className="help-icon">?</span><div><strong>Precisa de ajuda?</strong><small>Consulte a documentação</small></div></div><div className="profile"><span className="avatar avatar-purple">{user.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span><span><strong>{user.name}</strong><small>{user.role === 'admin' ? 'Administrador' : 'Operador'}</small></span><button className="logout-button" onClick={logout} aria-label="Sair">↪</button></div></div>
     </aside>
     <main className="main-content">
       <header className="topbar"><div className="breadcrumb"><span>Workspace</span><span>/</span><strong>Visão geral</strong></div><div className="top-actions"><button className="icon-button" aria-label="Pesquisar">⌕</button><button className="icon-button notification" aria-label="Notificações">♢<i /></button><button className="avatar avatar-purple">AS</button></div></header>
@@ -103,3 +120,7 @@ function IncidentRow({ incident, selected, onClick }: { incident: Incident; sele
 function IncidentDetails({ incident, onStatusChange, onComment }: { incident: Incident | null; onStatusChange: (status: IncidentStatus) => void; onComment: (event: FormEvent<HTMLFormElement>) => void }) { if (!incident) return <aside className="details-panel panel-card empty-details"><span>◈</span><h3>Selecione um incidente</h3><p>Escolha um item da tabela para ver os detalhes.</p></aside>; const sla = getSlaState(incident); return <aside className="details-panel panel-card"><div className="details-heading"><div><span className={`badge severity-${incident.severity}`}><i />{severityLabels[incident.severity]}</span><h2>{incident.title}</h2><p>{incident.id} · Criado {formatDate(incident.createdAt)}</p></div><button className="more-button">•••</button></div><div className="details-description"><p>{incident.description}</p></div><div className="detail-meta"><div><span>Serviço</span><strong>{incident.service}</strong></div><div><span>Responsável</span><strong>{incident.assignee}</strong></div><div><span>SLA</span><strong className={`sla ${sla.tone}`}>{sla.label}</strong></div></div><div className="status-control"><span>Status atual</span><select value={incident.status} onChange={(event) => onStatusChange(event.target.value as IncidentStatus)}>{Object.entries(statusLabels).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></div><div className="activity"><div className="activity-header"><h3>Atividade</h3><span>{incident.comments.length} comentário{incident.comments.length === 1 ? '' : 's'}</span></div><div className="activity-list"><div className="activity-item"><span className="timeline-dot blue" /><div><strong>Incidente criado</strong><small>{formatDate(incident.createdAt)}</small></div></div>{incident.comments.map((comment) => <div className="activity-item" key={comment.id}><span className="timeline-dot purple" /><div><strong>{comment.author} comentou</strong><p>{comment.body}</p><small>{formatDate(comment.createdAt)}</small></div></div>)}</div><form className="comment-form" onSubmit={onComment}><input name="comment" placeholder="Adicionar comentário..." aria-label="Adicionar comentário" /><button aria-label="Enviar comentário">↑</button></form></div></aside> }
 
 export default App
+
+function LoginScreen({ email, password, error, onEmailChange, onPasswordChange, onSubmit }: { email: string; password: string; error: string; onEmailChange: (value: string) => void; onPasswordChange: (value: string) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
+  return <main className="login-shell"><section className="login-card"><div className="login-brand"><span className="brand-mark">◆</span><span>Incident<span className="brand-accent">Board</span></span></div><p className="eyebrow">NORTHSTAR ENGINEERING</p><h1>Bem-vindo de volta</h1><p className="login-subtitle">Entre para acompanhar a saúde dos seus serviços.</p><form className="login-form" onSubmit={onSubmit}><label>E-mail<input type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} required /></label><label>Senha<input type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} required /></label>{error && <p className="login-error">{error}</p>}<button className="primary-button login-button" type="submit">Entrar no workspace <span>→</span></button></form><div className="demo-credentials"><strong>Acesso de demonstração</strong><span>demo@incidentboard.local</span><span>Senha: incidentboard</span></div></section><div className="login-decoration"><span className="deco-orb orb-one" /><span className="deco-orb orb-two" /><div><p className="eyebrow">OPERATIONS CONTROL CENTER</p><h2>Menos ruído.<br /><em>Mais contexto.</em></h2><p>Centralize incidentes, acompanhe SLAs e ajude sua equipe a responder melhor.</p></div></div></main>
+}

@@ -29,17 +29,21 @@ describe('IncidentBoard API', () => {
   })
 
   it('recusa a criação sem campos obrigatórios', async () => {
-    const response = await request(app).post('/api/incidents').send({ title: 'Sem descrição' })
+    const login = await request(app).post('/api/auth/login').send({ email: 'demo@incidentboard.local', password: 'incidentboard' })
+    const response = await request(app).post('/api/incidents').set('Authorization', `Bearer ${login.body.token}`).send({ title: 'Sem descrição' })
     expect(response.status).toBe(400)
     expect(response.body.message).toContain('obrigatórios')
   })
 
-  it('lista incidentes e permite consultar um incidente existente', async () => {
-    const listResponse = await request(app).get('/api/incidents')
+  it('protege e permite consultar incidentes após login', async () => {
+    const unauthorized = await request(app).get('/api/incidents')
+    expect(unauthorized.status).toBe(401)
+    const login = await request(app).post('/api/auth/login').send({ email: 'demo@incidentboard.local', password: 'incidentboard' })
+    const token = login.body.token as string
+    const listResponse = await request(app).get('/api/incidents').set('Authorization', `Bearer ${token}`)
     expect(listResponse.status).toBe(200)
     expect(listResponse.body.length).toBeGreaterThan(0)
-
-    const detailResponse = await request(app).get(`/api/incidents/${listResponse.body[0].id}`)
+    const detailResponse = await request(app).get(`/api/incidents/${listResponse.body[0].id}`).set('Authorization', `Bearer ${token}`)
     expect(detailResponse.status).toBe(200)
     expect(detailResponse.body.id).toBe(listResponse.body[0].id)
   })

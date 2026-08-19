@@ -22,6 +22,7 @@ export const createApp = () => {
   })
 
   app.get('/api/auth/me', requireAuth, (_request, response) => response.json(response.locals.user))
+  app.use('/api/incidents', requireAuth)
 
   app.get('/api/incidents', async (_request, response, next) => {
     try { response.json(await getIncidents()) } catch (error) { next(error) }
