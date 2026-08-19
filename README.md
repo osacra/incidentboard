@@ -1,75 +1,86 @@
-# React + TypeScript + Vite
+# IncidentBoard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Dashboard de gerenciamento de incidentes técnicos para equipes de engenharia. O projeto simula um produto operacional usado para registrar falhas, acompanhar severidade e status, controlar SLA, atribuir responsáveis e manter um histórico de atividade.
 
-Currently, two official plugins are available:
+## Objetivo do projeto
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+O IncidentBoard foi criado como projeto de portfólio para demonstrar desenvolvimento frontend moderno com TypeScript, modelagem de domínio, regras de negócio, persistência local, filtros, testes automatizados, responsividade e documentação técnica.
 
-## React Compiler
+## Funcionalidades
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Dashboard com métricas de incidentes ativos, críticos, em monitoramento e resolvidos.
+- Tabela de incidentes com busca por texto e filtros por status e severidade.
+- Cadastro de novos incidentes com validação de campos.
+- Alteração de status diretamente no painel de detalhes.
+- Visualização de serviço, responsável, severidade e situação do SLA.
+- Histórico de atividade e inclusão de comentários.
+- Persistência dos dados no `localStorage` para permitir demonstração sem backend.
+- Interface responsiva para desktop, tablet e dispositivos móveis.
 
-## Expanding the ESLint configuration
+## Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- React 19
+- TypeScript
+- Vite
+- CSS responsivo sem framework visual
+- Vitest e Testing Library
+- ESLint
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Como executar
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Pré-requisitos
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- Node.js 20 ou superior.
+- npm 10 ou superior.
 
+### Instalação
+
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Desenvolvimento
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm run dev
 ```
+
+A aplicação ficará disponível no endereço informado pelo Vite, normalmente `http://localhost:5173`.
+
+### Verificações
+
+```bash
+npm run lint
+npm run test
+npm run build
+```
+
+## Estrutura principal
+
+```text
+src/
+├── App.tsx             # Composição da interface e fluxos principais
+├── App.css             # Identidade visual e responsividade
+├── index.css           # Estilos globais
+├── storage.ts          # Persistência local e regras de SLA
+├── storage.test.ts     # Testes das regras de negócio
+├── test-setup.ts       # Configuração global do Vitest
+├── types.ts            # Tipos e labels do domínio
+└── main.tsx            # Entrada da aplicação
+```
+
+## Decisões técnicas
+
+A persistência foi isolada em `storage.ts` para que o `localStorage` possa ser substituído por uma API sem reescrever a interface. Os tipos de domínio ficam centralizados em `types.ts`, reduzindo inconsistências entre componentes. A primeira versão prioriza um fluxo demonstrável e testável; autenticação real, backend, PostgreSQL e integrações com ferramentas de incidentes ficam como próximos incrementos.
+
+## Próximos passos
+
+1. Criar backend com Node.js e PostgreSQL.
+2. Adicionar autenticação e controle de permissões.
+3. Adicionar paginação, ordenação e exportação de relatórios.
+4. Integrar notificações e webhooks.
+5. Publicar a aplicação e configurar CI para lint, testes e build.
+
+## Histórico de desenvolvimento
+
+O repositório utiliza commits convencionais e separados por responsabilidade. O histórico inicial inclui a criação do projeto, definição do escopo, implementação do dashboard, configuração de qualidade e testes das regras de SLA.
