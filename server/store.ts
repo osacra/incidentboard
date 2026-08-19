@@ -1,61 +1,81 @@
 import bcrypt from 'bcryptjs'
-import Database from 'better-sqlite3'
-import { mkdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { desc, eq, inArray } from 'drizzle-orm'
 import type { Incident } from '../src/types'
 import { demoIncidents } from '../src/storage'
+import { db, pool } from './db/client'
+import { comments, incidents, users } from './db/schema'
 
-const databasePath = resolve(process.cwd(), 'server/data/incidentboard.sqlite')
-mkdirSync(dirname(databasePath), { recursive: true })
-const database = new Database(databasePath)
-database.pragma('journal_mode = WAL')
-database.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'operator'
-  );
-  CREATE TABLE IF NOT EXISTS incidents (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    severity TEXT NOT NULL,
-    status TEXT NOT NULL,
-    assignee TEXT NOT NULL,
-    service TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    sla_hours INTEGER NOT NULL,
-    comments_json TEXT NOT NULL DEFAULT '[]'
-  )
-`)
+let initialization: Promise<void> | undefined
 
-const userCount = database.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number }
-if (userCount.count === 0) {
-  const passwordHash = bcrypt.hashSync('incidentboard', 10)
-  database.prepare('INSERT INTO users (email, password_hash, name, role) VALUES (?, ?, ?, ?)').run('demo@incidentboard.local', passwordHash, 'Demo Operator', 'admin')
-}
-
-const count = database.prepare('SELECT COUNT(*) as count FROM incidents').get() as { count: number }
-if (count.count === 0) {
-  const insert = database.prepare(`INSERT INTO incidents (id, title, description, severity, status, assignee, service, created_at, updated_at, sla_hours, comments_json) VALUES (@id, @title, @description, @severity, @status, @assignee, @service, @createdAt, @updatedAt, @slaHours, @commentsJson)`)
-  const seed = database.transaction((incidents: Incident[]) => { incidents.forEach((incident) => insert.run({ ...incident, commentsJson: JSON.stringify(incident.comments) })) })
-  seed(demoIncidents)
-}
-
-const mapRow = (row: Record<string, unknown>): Incident => ({
-  id: String(row.id), title: String(row.title), description: String(row.description), severity: row.severity as Incident['severity'], status: row.status as Incident['status'], assignee: String(row.assignee), service: String(row.service), createdAt: String(row.created_at), updatedAt: String(row.updated_at), slaHours: Number(row.sla_hours), comments: JSON.parse(String(row.comments_json)),
+const toIncident = (row: typeof incidents.$inferSelect, incidentComments: typeof comments.$inferSelect[]): Incident => ({
+  id: row.legacyId ?? row.id,
+  title: row.title,
+  description: row.description,
+  severity: row.severity,
+  status: row.status,
+  assignee: row.assignee,
+  service: row.service,
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString(),
+  slaHours: row.slaHours,
+  comments: incidentComments.map((comment) => ({ id: comment.id, author: comment.authorName, body: comment.body, createdAt: comment.createdAt.toISOString() })),
 })
 
-export { database }
-export async function ensureStore() { return database }
-export function getIncidents(): Incident[] { return (database.prepare('SELECT * FROM incidents ORDER BY created_at DESC').all() as Record<string, unknown>[]).map(mapRow) }
-export function getIncident(id: string) { const row = database.prepare('SELECT * FROM incidents WHERE id = ?').get(id) as Record<string, unknown> | undefined; return row ? mapRow(row) : null }
-export function saveIncidents(incidents: Incident[]) {
-  const replace = database.prepare(`INSERT OR REPLACE INTO incidents (id, title, description, severity, status, assignee, service, created_at, updated_at, sla_hours, comments_json) VALUES (@id, @title, @description, @severity, @status, @assignee, @service, @createdAt, @updatedAt, @slaHours, @commentsJson)`)
-  const remove = database.prepare('DELETE FROM incidents WHERE id = ?')
-  const persist = database.transaction((next: Incident[]) => { const current = getIncidents(); const ids = new Set(next.map((incident) => incident.id)); current.filter((incident) => !ids.has(incident.id)).forEach((incident) => remove.run(incident.id)); next.forEach((incident) => replace.run({ ...incident, commentsJson: JSON.stringify(incident.comments) })) })
-  persist(incidents)
+async function seedDatabase() {
+  const [userCount, incidentCount] = await Promise.all([
+    db.select({ id: users.id }).from(users).limit(1),
+    db.select({ id: incidents.id }).from(incidents).limit(1),
+  ])
+  if (userCount.length === 0) {
+    await db.insert(users).values({ email: 'demo@incidentboard.local', passwordHash: await bcrypt.hash('incidentboard', 10), name: 'Demo Operator', role: 'admin' })
+  }
+  if (incidentCount.length === 0) {
+    for (const incident of demoIncidents) {
+      const [created] = await db.insert(incidents).values({ legacyId: incident.id, title: incident.title, description: incident.description, severity: incident.severity, status: incident.status, assignee: incident.assignee, service: incident.service, createdAt: new Date(incident.createdAt), updatedAt: new Date(incident.updatedAt), slaHours: incident.slaHours }).returning({ id: incidents.id })
+      if (created && incident.comments.length > 0) await db.insert(comments).values(incident.comments.map((comment) => ({ id: randomUUID(), incidentId: created.id, authorName: comment.author, body: comment.body, createdAt: new Date(comment.createdAt) })))
+    }
+  }
 }
+
+export function ensureStore() {
+  initialization ??= seedDatabase()
+  return initialization
+}
+
+async function rowsToIncidents(rows: typeof incidents.$inferSelect[]) {
+  if (rows.length === 0) return []
+  const ids = rows.map((row) => row.id)
+  const allComments = await db.select().from(comments).where(inArray(comments.incidentId, ids))
+  return rows.map((row) => toIncident(row, allComments.filter((comment) => comment.incidentId === row.id)))
+}
+
+export async function getIncidents(): Promise<Incident[]> {
+  await ensureStore()
+  return rowsToIncidents(await db.select().from(incidents).orderBy(desc(incidents.createdAt)))
+}
+
+export async function getIncident(id: string): Promise<Incident | null> {
+  await ensureStore()
+  const rows = await db.select().from(incidents).where(eq(incidents.legacyId, id)).limit(1)
+  if (rows.length === 0) return null
+  const mapped = await rowsToIncidents(rows)
+  return mapped[0] ?? null
+}
+
+export async function saveIncidents(next: Incident[]) {
+  await ensureStore()
+  await db.transaction(async (tx) => {
+    const current = await tx.select({ legacyId: incidents.legacyId }).from(incidents)
+    const ids = new Set(next.map((incident) => incident.id))
+    for (const row of current) if (row.legacyId && !ids.has(row.legacyId)) await tx.delete(incidents).where(eq(incidents.legacyId, row.legacyId))
+    for (const incident of next) {
+      const existing = await tx.select({ id: incidents.id }).from(incidents).where(eq(incidents.legacyId, incident.id)).limit(1)
+      const values = { title: incident.title, description: incident.description, severity: incident.severity, status: incident.status, assignee: incident.assignee, service: incident.service, createdAt: new Date(incident.createdAt), updatedAt: new Date(incident.updatedAt), slaHours: incident.slaHours }
+      if (existing[0]) await tx.update(incidents).set(values).where(eq(incidents.id, existing[0].id))
+      else await tx.insert(incidents).values({ legacyId: incident.id, ...values })
+    }
+  })
+}
+
+export { db, pool }

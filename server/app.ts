@@ -13,12 +13,14 @@ export const createApp = () => {
   app.use(express.json())
   app.get('/api/health', (_request, response) => response.json({ status: 'ok', service: 'incidentboard-api' }))
 
-  app.post('/api/auth/login', (request, response) => {
+  app.post('/api/auth/login', async (request, response, next) => {
     const { email, password } = request.body as { email?: string; password?: string }
     if (!email || !password) return response.status(400).json({ message: 'E-mail e senha são obrigatórios.' })
-    const user = authenticate(email, password)
-    if (!user) return response.status(401).json({ message: 'Credenciais inválidas.' })
-    return response.json({ token: createToken(user), user })
+    try {
+      const user = await authenticate(email, password)
+      if (!user) return response.status(401).json({ message: 'Credenciais inválidas.' })
+      return response.json({ token: createToken(user), user })
+    } catch (error) { return next(error) }
   })
 
   app.get('/api/auth/me', requireAuth, (_request, response) => response.json(response.locals.user))
