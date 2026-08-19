@@ -125,3 +125,11 @@ A API aceita a variável `API_PORT`, com valor padrão `3001`. O frontend aceita
 | `POST` | `/api/incidents/:id/comments` | Adicionar comentário ao histórico. |
 
 Os testes podem ser executados com `npm run test`. Eles cobrem as regras de SLA, a geração de identificadores, o health check, as validações de payload e a consulta de incidentes pela API. O arquivo SQLite é ignorado pelo Git para que cada ambiente possa criar seu próprio banco local a partir do schema e dos dados de demonstração.
+
+## Autenticação
+
+A API também possui autenticação JWT para preparar o controle de acesso do produto. O endpoint `POST /api/auth/login` recebe `email` e `password`, valida a senha com bcrypt e devolve um token com validade de oito horas. O endpoint `GET /api/auth/me` valida o token enviado no header `Authorization: Bearer <token>`.
+
+Para demonstração local, a conta inicial é `demo@incidentboard.local` com a senha `incidentboard`. Essa credencial existe apenas para o ambiente de demonstração e deve ser alterada antes de qualquer publicação real. Em produção, defina uma variável `JWT_SECRET` longa e aleatória; o segredo padrão de desenvolvimento não deve ser utilizado.
+
+A próxima etapa de segurança será conectar a tela de login ao frontend e aplicar o middleware de autenticação às operações de incidentes, além de adicionar papéis de administrador e operador.
