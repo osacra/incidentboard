@@ -84,3 +84,44 @@ A persistência foi isolada em `storage.ts` para que o `localStorage` possa ser 
 ## Histórico de desenvolvimento
 
 O repositório utiliza commits convencionais e separados por responsabilidade. O histórico inicial inclui a criação do projeto, definição do escopo, implementação do dashboard, configuração de qualidade e testes das regras de SLA.
+
+## Arquitetura full-stack
+
+A aplicação agora possui um frontend React e uma API Express local. Durante o desenvolvimento, o frontend tenta carregar os dados pela API em `http://localhost:3001/api`. Se a API estiver indisponível, a interface entra automaticamente em modo demonstração usando `localStorage`, permitindo continuar a explorar o produto.
+
+A API persiste os dados em `server/data/incidents.json` nesta primeira etapa. A camada fica isolada em `server/store.ts` para facilitar a substituição futura por PostgreSQL sem alterar os endpoints ou os componentes da interface.
+
+### Executar frontend e API
+
+Para executar apenas a interface:
+
+```bash
+npm run dev
+```
+
+Para executar apenas a API:
+
+```bash
+npm run dev:api
+```
+
+Para executar os dois processos ao mesmo tempo:
+
+```bash
+npm run dev:full
+```
+
+A API aceita a variável `API_PORT`, com valor padrão `3001`. O frontend aceita `VITE_API_URL` quando a API estiver hospedada em outro endereço.
+
+### Endpoints principais
+
+| Método | Endpoint | Finalidade |
+|---|---|---|
+| `GET` | `/api/health` | Verificar se a API está disponível. |
+| `GET` | `/api/incidents` | Listar incidentes. |
+| `GET` | `/api/incidents/:id` | Consultar um incidente. |
+| `POST` | `/api/incidents` | Criar um incidente. |
+| `PATCH` | `/api/incidents/:id` | Atualizar status, severidade, responsável ou serviço. |
+| `POST` | `/api/incidents/:id/comments` | Adicionar comentário ao histórico. |
+
+Os testes podem ser executados com `npm run test`. Eles cobrem as regras de SLA, a geração de identificadores, o health check, as validações de payload e a consulta de incidentes pela API.
