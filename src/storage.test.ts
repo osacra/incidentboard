@@ -19,4 +19,17 @@ describe('regras de incidentes', () => {
   it('informa quando o SLA foi estourado', () => {
     expect(getSlaState(incident({ createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), slaHours: 8 }))).toEqual({ label: 'SLA estourado', tone: 'danger' })
   })
+
+  it('salva e carrega incidentes do armazenamento local', async () => {
+    const { loadIncidents, saveIncidents } = await import('./storage')
+    const records = [incident({ id: 'INC-1200' })]
+    saveIncidents(records)
+    expect(loadIncidents()).toEqual(records)
+  })
+
+  it('retorna os dados de demonstração quando o JSON local é inválido', async () => {
+    const { demoIncidents, loadIncidents } = await import('./storage')
+    window.localStorage.setItem('incidentboard:incidents', '{invalid-json')
+    expect(loadIncidents()).toEqual(demoIncidents)
+  })
 })

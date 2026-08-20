@@ -6,9 +6,9 @@ IncidentBoard is an operational dashboard for engineering teams to register, pri
 
 ## Preview
 
-![IncidentBoard login screen](docs/screenshots/login.webp)
+![IncidentBoard login screen](docs/screenshots/incidentboard-login.webp)
 
-The preview shows the access screen of the MVP. The local API is intentionally started as a separate process, so the interface can also be inspected independently from the persistence layer. Demo credentials are for local development only and must never be reused in production.
+The preview shows the access screen of the MVP captured from a local Vite session. The frontend can be inspected independently, while the authenticated API workflow requires the PostgreSQL service described below. Demo credentials are for local development only and must never be reused in production.
 
 ## Why this project exists
 
@@ -28,7 +28,7 @@ Incident response requires more than a CRUD screen. Teams need to understand whi
 
 ## Architecture
 
-The application is organized around a React frontend and a local Express API. The API isolates persistence and domain rules so the storage layer can evolve without requiring a rewrite of the interface. SQLite is used for a frictionless local demo; PostgreSQL configuration and Drizzle migrations are included as the next persistence step.
+The application is organized around a React frontend and an Express API. The API isolates persistence and domain rules so the storage layer can evolve without requiring a rewrite of the interface. PostgreSQL configuration and Drizzle migrations are included for the authenticated workflow; the frontend also includes a local fallback so the visual interface can be inspected without an available API.
 
 ```text
 React + TypeScript + Vite
@@ -40,7 +40,7 @@ Express API + JWT authentication
 SQLite local store / PostgreSQL migration path
 ```
 
-The frontend can fall back to local demo persistence when the API is unavailable. This makes the product easy to explore locally while keeping the API boundary explicit.
+The frontend can fall back to local demo persistence when the API is unavailable. This makes the interface easy to explore locally while keeping the API boundary explicit; full login and API tests still require PostgreSQL.
 
 ## Technology stack
 
