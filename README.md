@@ -1,121 +1,143 @@
 # IncidentBoard
 
-IncidentBoard is an operational dashboard for engineering teams to register, prioritize and track technical incidents. The project models a realistic incident-management workflow with severity, status, SLA visibility, ownership and an activity history.
+IncidentBoard é um dashboard operacional para equipes de engenharia registrarem, priorizarem e acompanharem incidentes técnicos. O projeto modela um fluxo realista de gerenciamento de incidentes com severidade, status, visibilidade de SLA, responsáveis, comentários e histórico de atividade.
 
-> **Portfolio project:** the current version is designed to demonstrate domain modeling, full-stack TypeScript, authentication, persistence, business rules, responsive UI and automated tests.
+> **Projeto de portfólio:** a versão atual demonstra modelagem de domínio, TypeScript full-stack, autenticação, persistência relacional, regras de negócio, interface responsiva, testes automatizados e CI.
 
 ## Preview
 
 ![IncidentBoard login screen](docs/screenshots/incidentboard-login.webp)
 
-The preview shows the access screen of the MVP captured from a local Vite session. The frontend can be inspected independently, while the authenticated API workflow requires the PostgreSQL service described below. Demo credentials are for local development only and must never be reused in production.
+A API local é iniciada como um processo separado do frontend. As credenciais de demonstração existem somente para desenvolvimento local e nunca devem ser reutilizadas em produção.
 
-## Why this project exists
+## Principais capacidades
 
-Incident response requires more than a CRUD screen. Teams need to understand which incidents are critical, who owns them, whether an SLA is at risk and what actions have already been taken. IncidentBoard centralizes those signals in a workflow that is easy to inspect and extend.
+- Dashboard com métricas de incidentes ativos, críticos, monitorados e resolvidos.
+- Busca e filtros por status e severidade.
+- Criação de incidentes com validação de payload.
+- Controle de status, severidade, serviço, responsável e SLA.
+- Detalhes do incidente com comentários e histórico.
+- Persistência em PostgreSQL 17 com Drizzle ORM e migrations versionadas.
+- Autenticação JWT com access tokens curtos e refresh tokens rotativos.
+- RBAC com os papéis `admin`, `operator` e `viewer`.
+- Recuperação de senha local, com token exposto somente fora de produção.
+- REST API para health check, usuários, autenticação e operações de incidentes.
 
-## Main capabilities
+## Arquitetura
 
-- Dashboard with active, critical, monitored and resolved incident metrics.
-- Search and filtering by status and severity.
-- Incident creation with payload validation.
-- Status, severity, service, assignee and SLA tracking.
-- Incident detail view with comments and activity history.
-- Authentication with JWT-based session validation.
-- REST API for health checks, incident operations and comments.
-- SQLite-backed local demonstration mode with a clear path to PostgreSQL.
-- Responsive interface for desktop, tablet and mobile layouts.
-
-## Architecture
-
-The application is organized around a React frontend and an Express API. The API isolates persistence and domain rules so the storage layer can evolve without requiring a rewrite of the interface. PostgreSQL configuration and Drizzle migrations are included for the authenticated workflow; the frontend also includes a local fallback so the visual interface can be inspected without an available API.
+A aplicação é organizada em um frontend React e uma API Express. A API isola a persistência e as regras de domínio, enquanto o PostgreSQL é a única camada de persistência em runtime. O Drizzle ORM gerencia o schema e as migrations. O Docker Compose fornece uma instância reprodutível do PostgreSQL 17 para desenvolvimento local.
 
 ```text
-React + TypeScript + Vite
-          |
-          v
-Express API + JWT authentication
-          |
-          v
-SQLite local store / PostgreSQL migration path
+React 19 + TypeScript + Vite + React Router + Zustand + Tailwind CSS v4
+                              |
+                              v
+                   Express 5 + JWT + RBAC
+                              |
+                              v
+              Drizzle ORM + PostgreSQL 17 via Docker
 ```
 
-The frontend can fall back to local demo persistence when the API is unavailable. This makes the interface easy to explore locally while keeping the API boundary explicit; full login and API tests still require PostgreSQL.
+O frontend não persiste incidentes localmente. Se o PostgreSQL ou a API estiver indisponível, a aplicação informa o problema de conexão em vez de alternar silenciosamente para SQLite ou localStorage.
 
-## Technology stack
+## Stack tecnológica
 
-| Area | Technologies |
+| Área | Tecnologias |
 |---|---|
-| Frontend | React 19, TypeScript, Vite, responsive CSS |
-| Backend | Node.js, Express, TypeScript |
-| Persistence | SQLite, PostgreSQL migration path, Drizzle configuration |
-| Quality | Vitest, Testing Library, ESLint, TypeScript build |
-| Security | JWT authentication, bcrypt password validation, environment-based secrets |
+| Frontend | React 19, TypeScript, Vite, React Router, Zustand, Tailwind CSS v4 |
+| Backend | Node.js, Express 5, TypeScript |
+| Persistência | PostgreSQL 17, Drizzle ORM, migrations SQL versionadas |
+| Runtime local | Docker Compose |
+| Qualidade | Vitest, Supertest, Testing Library, ESLint, TypeScript build |
+| Segurança | JWT, refresh token rotation, RBAC, bcrypt e segredos por ambiente |
+| CI | GitHub Actions com PostgreSQL, migrations, lint, testes e build |
 
-## Run locally
+## Execução local
 
-### Requirements
+### Requisitos
 
-- Node.js 20 or newer.
-- npm 10 or newer.
-- Docker Desktop is required only for the optional PostgreSQL workflow.
+- Node.js 20 ou superior.
+- npm 10 ou superior.
+- Docker Desktop instalado e em execução. PostgreSQL é obrigatório para a API.
 
-### Install and start
+### Instalação e inicialização
 
-```bash
+No PowerShell:
+
+```powershell
 npm install
+Copy-Item .env.example .env
 npm run dev
 ```
 
-The frontend normally runs at `http://localhost:5173` and the API at `http://localhost:3001`.
+`npm run dev` inicia o PostgreSQL via Docker Compose, aplica as migrations do Drizzle e inicia a API e o frontend. O frontend fica normalmente em `http://localhost:5173` e a API em `http://localhost:3001`.
 
-### Validate the project
+Para executar as etapas separadamente:
 
-```bash
+```powershell
+npm run db:up
+npm run db:migrate
+npm run dev:api
+```
+
+Para desenvolvimento normal, use o comando único `npm run dev`. As variáveis estão documentadas em `.env.example`. Nunca versione credenciais reais ou segredos de produção.
+
+### Validação
+
+```powershell
 npm run lint
 npm run test
 npm run build
 ```
 
-To run the API separately:
+## API
 
-```bash
-npm run dev:api
-```
-
-Environment variables are documented in `.env.example`. Never commit real credentials or production secrets.
-
-## API overview
-
-| Method | Endpoint | Purpose |
+| Método | Endpoint | Finalidade |
 |---|---|---|
-| `GET` | `/api/health` | Check API availability. |
-| `GET` | `/api/incidents` | List incidents. |
-| `GET` | `/api/incidents/:id` | Retrieve one incident. |
-| `POST` | `/api/incidents` | Create an incident. |
-| `PATCH` | `/api/incidents/:id` | Update incident fields. |
-| `POST` | `/api/incidents/:id/comments` | Add an activity comment. |
-| `POST` | `/api/auth/login` | Authenticate a local user. |
-| `GET` | `/api/auth/me` | Validate the current session. |
-
-## Tests and engineering decisions
-
-The test suite covers SLA rules, identifier generation, API health checks, request validation and incident queries. Domain types are centralized in `src/types.ts`, while persistence and business rules are isolated from the UI. The project uses conventional commits and keeps local database files out of version control.
-
-## Current limitations and roadmap
-
-The project is an MVP and is intentionally transparent about its current boundaries. Local SQLite is the default demonstration store, the PostgreSQL migration path still needs a fully validated environment, and production-grade features such as password recovery, granular permissions, notifications, observability and deployment automation remain future increments.
-
-Planned improvements include:
-
-1. Complete PostgreSQL validation and add seeded demo data for the deployed environment.
-2. Add granular permissions and user invitation flows.
-3. Add notifications, webhooks and operational observability.
-4. Add pagination, sorting and report export.
-5. Configure continuous integration for lint, tests and build.
+| `GET` | `/api/health` | Verificar disponibilidade da API. |
+| `GET` | `/api/incidents` | Listar incidentes autenticados. |
+| `GET` | `/api/incidents/:id` | Consultar um incidente. |
+| `POST` | `/api/incidents` | Criar incidente como `admin` ou `operator`. |
+| `PATCH` | `/api/incidents/:id` | Atualizar incidente como `admin` ou `operator`. |
+| `POST` | `/api/incidents/:id/comments` | Adicionar comentário. |
+| `POST` | `/api/auth/login` | Autenticar usuário local. |
+| `POST` | `/api/auth/refresh` | Rotacionar refresh token. |
+| `POST` | `/api/auth/logout` | Revogar refresh token. |
+| `POST` | `/api/auth/forgot-password` | Gerar recuperação local. |
+| `POST` | `/api/auth/reset-password` | Redefinir senha. |
+| `GET` | `/api/users` | Listar usuários para administradores. |
+| `PATCH` | `/api/users/:id/role` | Alterar papel de usuário. |
+| `GET` | `/api/auth/me` | Validar a sessão atual. |
 
 ## Sessões e autorização
 
 O login emite um access token JWT de curta duração e um refresh token opaco armazenado com hash no PostgreSQL. O frontend renova automaticamente a sessão quando uma chamada autenticada retorna `401`. Refresh tokens são rotacionados a cada uso e podem ser revogados no logout.
 
-A API possui três papéis: `admin`, `operator` e `viewer`. Leitura de incidentes exige autenticação; criação, edição, alteração de status e comentários exigem `admin` ou `operator`. O papel `viewer` fica restrito à leitura. Em produção, o segredo JWT deve ser longo, aleatório e fornecido exclusivamente por variável de ambiente.
+A API possui três papéis: `admin`, `operator` e `viewer`. A leitura de incidentes exige autenticação; criação, edição, alteração de status e comentários exigem `admin` ou `operator`. O papel `viewer` fica restrito à leitura. Em produção, o segredo JWT deve ser longo, aleatório e fornecido exclusivamente por variável de ambiente.
+
+## Troubleshooting
+
+Se aparecer `failed to connect to the docker API` ou `dockerDesktopLinuxEngine`, o Docker Desktop não está em execução ou ainda não terminou de inicializar. Abra o Docker Desktop, aguarde o status da engine ficar pronto e confirme com:
+
+```powershell
+docker version
+docker compose ps
+```
+
+Depois execute:
+
+```powershell
+npm run db:setup
+npm run dev
+```
+
+Se aparecer `DATABASE_URL não configurada`, crie o `.env` com `Copy-Item .env.example .env`. Se a migration apresentar conexão recusada, confirme que o container está saudável com `docker compose ps` e que a porta 5432 não está sendo usada por outro PostgreSQL local.
+
+## Testes e decisões de engenharia
+
+A suíte cobre regras de SLA, geração de identificadores, health checks, autenticação, rotação e revogação de refresh tokens, recuperação de senha, RBAC, validação de requisições e consultas de incidentes. Os tipos de domínio estão centralizados em `src/types.ts`, enquanto persistência e regras de negócio ficam isoladas da UI. O projeto utiliza Conventional Commits e não mantém arquivos de banco local versionados.
+
+## Limitações e próximos passos
+
+PostgreSQL é obrigatório em runtime; não existe fallback para SQLite. A recuperação de senha atualmente é local e expõe o token somente em ambiente não produtivo, para permitir teste manual sem configurar um provedor de e-mail.
+
+Os próximos incrementos recomendados são entrega de e-mail para recuperação em produção, convite de usuários, observabilidade, notificações, webhooks, paginação, ordenação, exportação de relatórios e deploy automatizado na plataforma escolhida.
