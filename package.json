@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"vite\" \"npm run dev:api\"",
     "dev:api": "npm run db:setup && tsx server/index.ts",
-    "db:up": "docker compose up -d postgres",
+    "db:up": "docker start incidentboard-postgres || docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:setup": "npm run db:up && npm run db:migrate",
     "db:generate": "drizzle-kit generate",
