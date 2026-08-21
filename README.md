@@ -115,7 +115,9 @@ O mesmo fluxo de banco, lint, testes e build é executado automaticamente pelo G
 
 | Método | Endpoint | Finalidade |
 |---|---|---|
-| `GET` | `/api/health` | Verificar disponibilidade da API. |
+| `GET` | `/api/health` | Verificar disponibilidade básica da API. |
+| `GET` | `/api/health/live` | Verificar se o processo está vivo. |
+| `GET` | `/api/health/ready` | Verificar se a API consegue acessar o PostgreSQL. |
 | `GET` | `/api/incidents` | Listar incidentes autenticados. |
 | `GET` | `/api/incidents/:id` | Consultar um incidente. |
 | `POST` | `/api/incidents` | Criar incidente como `admin` ou `operator`. |
@@ -129,6 +131,10 @@ O mesmo fluxo de banco, lint, testes e build é executado automaticamente pelo G
 | `GET` | `/api/users` | Listar usuários para administradores. |
 | `PATCH` | `/api/users/:id/role` | Alterar papel de usuário. |
 | `GET` | `/api/auth/me` | Validar a sessão atual. |
+
+## Operação e segurança
+
+A API envia um `X-Request-Id` em cada resposta para facilitar rastreamento nos logs. O endpoint `/api/health/live` indica somente que o processo está vivo, enquanto `/api/health/ready` valida também a conexão com o PostgreSQL e retorna `503` quando a dependência não está disponível. O CORS aceita a origem definida em `CORS_ORIGIN`, cujo padrão local é `http://localhost:5173`. O login possui rate limit por IP em ambientes não relacionados a testes, reduzindo tentativas automatizadas sem tornar a suíte de integração dependente de estado global.
 
 ## Sessões e autorização
 
