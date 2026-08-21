@@ -1,11 +1,11 @@
 import cors from 'cors'
 import express from 'express'
 import type { Incident, IncidentComment, IncidentSeverity, IncidentStatus } from '../src/types'
-import { authenticate, createAccessToken, createRefreshToken, requestPasswordReset, requireAuth, requireRole, resetPassword, revokeRefreshToken, rotateRefreshToken } from './auth'
+import { authenticate, createAccessToken, createRefreshToken, requestPasswordReset, requireAuth, requireRole, resetPassword, revokeRefreshToken, rotateRefreshToken, type AuthUser } from './auth'
 import { eq } from 'drizzle-orm'
 import { users } from './db/schema'
 import { db, ensureStore } from './store'
-import { getIncident, getIncidents, saveIncidents } from './store'
+import { addIncidentComment, getIncident, getIncidents, saveIncidents } from './store'
 
 export const createApp = () => {
   const app = express()
@@ -126,15 +126,12 @@ export const createApp = () => {
 
   app.post('/api/incidents/:id/comments', async (request, response, next) => {
     try {
-      const incidents = await getIncidents()
-      const index = incidents.findIndex((incident) => incident.id === request.params.id)
-      if (index === -1) return response.status(404).json({ message: 'Incidente não encontrado.' })
-      const { body, author = 'Você' } = request.body as Partial<IncidentComment>
+      const { body } = request.body as Partial<IncidentComment>
       if (!body?.trim()) return response.status(400).json({ message: 'O comentário não pode ficar vazio.' })
-      const comment: IncidentComment = { id: crypto.randomUUID(), author, body: body.trim(), createdAt: new Date().toISOString() }
-      incidents[index] = { ...incidents[index], comments: [...incidents[index].comments, comment], updatedAt: comment.createdAt }
-      await saveIncidents(incidents)
-      return response.status(201).json(incidents[index])
+      const author = response.locals.user as AuthUser
+      const incident = await addIncidentComment(request.params.id, author, body.trim())
+      if (!incident) return response.status(404).json({ message: 'Incidente não encontrado.' })
+      return response.status(201).json(incident)
     } catch (error) { return next(error) }
   })
 

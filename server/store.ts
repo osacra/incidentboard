@@ -78,4 +78,17 @@ export async function saveIncidents(next: Incident[]) {
   })
 }
 
+export async function addIncidentComment(legacyId: string, author: { id: number; name: string }, body: string): Promise<Incident | null> {
+  await ensureStore()
+  const incidentId = await db.transaction(async (tx) => {
+    const incident = await tx.select({ id: incidents.id }).from(incidents).where(eq(incidents.legacyId, legacyId)).limit(1)
+    if (!incident[0]) return null
+    await tx.insert(comments).values({ incidentId: incident[0].id, authorId: author.id, authorName: author.name, body })
+    await tx.update(incidents).set({ updatedAt: new Date() }).where(eq(incidents.id, incident[0].id))
+    return incident[0].id
+  })
+  if (!incidentId) return null
+  return getIncident(legacyId)
+}
+
 export { db, pool }
