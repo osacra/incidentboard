@@ -8,6 +8,15 @@ export type IncidentComment = {
   createdAt: string
 }
 
+export type IncidentEvent = {
+  id: string
+  type: string
+  actor: string
+  before?: Record<string, unknown>
+  after?: Record<string, unknown>
+  createdAt: string
+}
+
 export type Incident = {
   id: string
   title: string
@@ -20,6 +29,7 @@ export type Incident = {
   updatedAt: string
   slaHours: number
   comments: IncidentComment[]
+  activity?: IncidentEvent[]
 }
 
 export type IncidentFilters = {

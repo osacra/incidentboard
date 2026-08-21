@@ -1,14 +1,14 @@
 import bcrypt from 'bcryptjs'
 import { randomUUID } from 'node:crypto'
 import { desc, eq, inArray } from 'drizzle-orm'
-import type { Incident } from '../src/types'
+import type { Incident, IncidentEvent } from '../src/types'
 import { demoIncidents } from '../src/storage'
 import { db, pool } from './db/client'
-import { comments, incidents, users } from './db/schema'
+import { comments, incidentEvents, incidents, users } from './db/schema'
 
 let initialization: Promise<void> | undefined
 
-const toIncident = (row: typeof incidents.$inferSelect, incidentComments: typeof comments.$inferSelect[]): Incident => ({
+const toIncident = (row: typeof incidents.$inferSelect, incidentComments: typeof comments.$inferSelect[], events: typeof incidentEvents.$inferSelect[]): Incident => ({
   id: row.legacyId ?? row.id,
   title: row.title,
   description: row.description,
@@ -20,6 +20,14 @@ const toIncident = (row: typeof incidents.$inferSelect, incidentComments: typeof
   updatedAt: row.updatedAt.toISOString(),
   slaHours: row.slaHours,
   comments: incidentComments.map((comment) => ({ id: comment.id, author: comment.authorName, body: comment.body, createdAt: comment.createdAt.toISOString() })),
+  activity: events.map((event): IncidentEvent => ({
+    id: event.id,
+    type: event.type,
+    actor: event.actorName,
+    ...(event.beforeData ? { before: JSON.parse(event.beforeData) as Record<string, unknown> } : {}),
+    ...(event.afterData ? { after: JSON.parse(event.afterData) as Record<string, unknown> } : {}),
+    createdAt: event.createdAt.toISOString(),
+  })),
 })
 
 async function seedDatabase() {
@@ -46,8 +54,11 @@ export function ensureStore() {
 async function rowsToIncidents(rows: typeof incidents.$inferSelect[]) {
   if (rows.length === 0) return []
   const ids = rows.map((row) => row.id)
-  const allComments = await db.select().from(comments).where(inArray(comments.incidentId, ids))
-  return rows.map((row) => toIncident(row, allComments.filter((comment) => comment.incidentId === row.id)))
+  const [allComments, allEvents] = await Promise.all([
+    db.select().from(comments).where(inArray(comments.incidentId, ids)),
+    db.select().from(incidentEvents).where(inArray(incidentEvents.incidentId, ids)),
+  ])
+  return rows.map((row) => toIncident(row, allComments.filter((comment) => comment.incidentId === row.id), allEvents.filter((event) => event.incidentId === row.id)))
 }
 
 export async function getIncidents(): Promise<Incident[]> {
@@ -89,6 +100,27 @@ export async function addIncidentComment(legacyId: string, author: { id: number;
   })
   if (!incidentId) return null
   return getIncident(legacyId)
+}
+
+export async function createIncidentEvent(input: {
+  legacyId: string
+  actor: { id: number; name: string }
+  type: string
+  before?: Record<string, unknown>
+  after?: Record<string, unknown>
+}) {
+  await ensureStore()
+  const incident = await db.select({ id: incidents.id }).from(incidents).where(eq(incidents.legacyId, input.legacyId)).limit(1)
+  if (!incident[0]) return null
+  const [event] = await db.insert(incidentEvents).values({
+    incidentId: incident[0].id,
+    actorId: input.actor.id,
+    actorName: input.actor.name,
+    type: input.type,
+    beforeData: input.before ? JSON.stringify(input.before) : null,
+    afterData: input.after ? JSON.stringify(input.after) : null,
+  }).returning()
+  return event
 }
 
 export { db, pool }

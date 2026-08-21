@@ -53,3 +53,14 @@ export const comments = pgTable('comments', {
   body: text('body').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const incidentEvents = pgTable('incident_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  incidentId: uuid('incident_id').notNull().references(() => incidents.id, { onDelete: 'cascade' }),
+  actorId: integer('actor_id').references(() => users.id, { onDelete: 'set null' }),
+  actorName: text('actor_name').notNull(),
+  type: text('type').notNull(),
+  beforeData: text('before_data'),
+  afterData: text('after_data'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
