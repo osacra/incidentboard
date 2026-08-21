@@ -1,6 +1,6 @@
 # Decisões técnicas do IncidentBoard
 
-Este documento resume as decisões que estruturam o IncidentBoard e serve como roteiro de preparação para entrevistas. A intenção não é decorar respostas, mas explicar quais problemas foram considerados, quais trade-offs foram aceitos e como o código comprova cada escolha.
+Este documento resume as decisões que estruturam o IncidentBoard, os problemas considerados, os trade-offs aceitos e as evidências correspondentes no código.
 
 ## Resumo arquitetural
 
@@ -17,9 +17,7 @@ O sistema foi dividido entre um frontend React/TypeScript e uma API Express/Type
 
 O sistema gerencia incidentes, comentários e eventos de auditoria. Em vez de usar `localStorage` ou uma base local apenas para facilitar a demonstração, a aplicação assume uma persistência relacional desde o início. Isso permite validar migrations, chaves estrangeiras, constraints, transações e testes de integração no mesmo tipo de banco usado em runtime.
 
-A resposta curta para uma entrevista seria:
-
-> Escolhi PostgreSQL porque o domínio é multiusuário e possui relações entre incidentes, usuários, comentários e eventos de auditoria. SQLite seria mais simples para rodar, mas esconderia problemas de concorrência e compatibilidade que eu quero exercitar. Para reduzir o custo dessa escolha, uso Docker Compose localmente e um serviço PostgreSQL no GitHub Actions.
+A decisão foi escolher PostgreSQL porque o domínio é multiusuário e possui relações entre incidentes, usuários, comentários e eventos de auditoria. SQLite seria mais simples para rodar, mas esconderia problemas de concorrência e compatibilidade que o projeto pretende exercitar. Para reduzir o custo dessa escolha, o ambiente usa Docker Compose localmente e um serviço PostgreSQL no GitHub Actions.
 
 ## Como a autorização é aplicada?
 
@@ -77,28 +75,28 @@ A API fornece `X-Request-Id` para correlacionar uma requisição com logs, difer
 
 Esses recursos não tornam o projeto pronto para produção automaticamente. Eles demonstram, porém, que o projeto considera falhas, diagnósticos e ciclo de vida do processo além do caminho feliz da interface.
 
-## Perguntas prováveis em entrevista
+## Pontos para discussão técnica
 
-### “Por que não colocou tudo em um único arquivo?”
+### Separação entre domínio, API e persistência
 
-Porque a regra de status e SLA não deve depender de Express, React ou PostgreSQL. A separação permite testar o domínio de forma rápida e evita que handlers HTTP acumulem regras de negócio. A estrutura continua simples: rotas coordenam, serviços orquestram, domínio decide e repositories persistem.
+A regra de status e SLA não deve depender de Express, React ou PostgreSQL. A separação permite testar o domínio de forma rápida e evita que handlers HTTP acumulem regras de negócio. A estrutura continua simples: rotas coordenam, serviços orquestram, domínio decide e repositories persistem.
 
-### “O que acontece se o cliente enviar outro autor no comentário?”
+### Autoria de comentários
 
 O servidor ignora a identidade enviada pelo cliente e usa o usuário autenticado no contexto da requisição. O cliente controla o conteúdo do comentário, mas não controla quem será registrado como autor.
 
-### “Como você verificou que um comentário realmente persiste?”
+### Verificação da persistência de comentários
 
 O teste cria um comentário, faz uma nova requisição de detalhe e verifica que o comentário está presente depois do reload. Isso é mais forte do que testar somente a resposta imediata do POST.
 
-### “O que você faria antes de colocar em produção?”
+### Preparação para produção
 
 Eu configuraria um provedor real de e-mail para recuperação de senha, adicionaria gestão segura de secrets, observabilidade centralizada, backup e restore testados, política de retenção da auditoria, paginação, revisão de CORS e um deploy com ambiente de staging antes de produção.
 
-### “Como você sabe que o frontend e a API estão coerentes?”
+### Coerência entre frontend e API
 
 Os tipos de domínio são compartilhados entre as camadas, os endpoints são documentados no README e a CI executa lint, build e testes de integração. Ainda assim, eu consideraria adicionar geração de contrato OpenAPI ou testes de contrato se a API evoluísse para múltiplos clientes.
 
 ## Limitações assumidas
 
-O projeto ainda não possui deploy público, observabilidade externa, notificações ou provedor de e-mail. Essas limitações estão documentadas e não são apresentadas como funcionalidades prontas. A ausência de deploy não impede a revisão: Docker, migrations, CI, screenshots e o roteiro de execução local permitem demonstrar o sistema de forma reproduzível.
+O projeto ainda não possui deploy público, observabilidade externa, notificações ou provedor de e-mail. Essas limitações estão documentadas e não são apresentadas como funcionalidades prontas. Docker, migrations, CI, screenshots e o roteiro de execução local permitem reproduzir e revisar o sistema.
