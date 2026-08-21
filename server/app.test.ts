@@ -107,6 +107,32 @@ describe('IncidentBoard API', () => {
     expect(reloaded.body.comments).toContainEqual(expect.objectContaining({ author: 'Demo Operator', body: 'Investigação iniciada' }))
   })
 
+  it('rejeita transições inválidas e registra a mudança de status', async () => {
+    const login = await request(app).post('/api/auth/login').send({ email: 'demo@incidentboard.local', password: 'incidentboard' })
+    const token = login.body.token as string
+    const created = await request(app).post('/api/incidents').set('Authorization', `Bearer ${token}`).send({
+      title: 'Falha criada para teste de domínio',
+      description: 'Incidente temporário para testar o ciclo de vida.',
+      severity: 'high',
+      assignee: 'Demo Operator',
+      service: 'Checkout',
+      slaHours: 8,
+    })
+    expect(created.status).toBe(201)
+
+    const invalid = await request(app).patch(`/api/incidents/${created.body.id}`).set('Authorization', `Bearer ${token}`).send({ status: 'resolved' })
+    expect(invalid.status).toBe(409)
+
+    const valid = await request(app).patch(`/api/incidents/${created.body.id}`).set('Authorization', `Bearer ${token}`).send({ status: 'investigating' })
+    expect(valid.status).toBe(200)
+
+    const reloaded = await request(app).get(`/api/incidents/${created.body.id}`).set('Authorization', `Bearer ${token}`)
+    expect(reloaded.body.activity).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'incident.created', actor: 'Demo Operator' }),
+      expect.objectContaining({ type: 'incident.status_changed', actor: 'Demo Operator' }),
+    ]))
+  })
+
   afterAll(async () => {
     // A API não abre listener durante os testes; este hook deixa o ciclo explícito.
   })

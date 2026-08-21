@@ -3,9 +3,10 @@ import express from 'express'
 import type { Incident, IncidentComment, IncidentSeverity, IncidentStatus } from '../src/types'
 import { authenticate, createAccessToken, createRefreshToken, requestPasswordReset, requireAuth, requireRole, resetPassword, revokeRefreshToken, rotateRefreshToken, type AuthUser } from './auth'
 import { eq } from 'drizzle-orm'
+import { assertTransition } from './domain/incident'
 import { users } from './db/schema'
 import { db, ensureStore } from './store'
-import { addIncidentComment, getIncident, getIncidents, saveIncidents } from './store'
+import { addIncidentComment, createIncidentEvent, getIncident, getIncidents, saveIncidents } from './store'
 
 export const createApp = () => {
   const app = express()
@@ -106,6 +107,7 @@ export const createApp = () => {
       const now = new Date().toISOString()
       const incident: Incident = { id: `INC-${highest + 1}`, title: title.trim(), description: description.trim(), severity: severity as IncidentSeverity, status: 'open', assignee: assignee.trim(), service: service.trim(), createdAt: now, updatedAt: now, slaHours: Number(slaHours) > 0 ? Number(slaHours) : 24, comments: [] }
       await saveIncidents([incident, ...incidents])
+      await createIncidentEvent({ legacyId: incident.id, actor: response.locals.user as AuthUser, type: 'incident.created', after: incident })
       return response.status(201).json(incident)
     } catch (error) { return next(error) }
   })
@@ -116,10 +118,15 @@ export const createApp = () => {
       const index = incidents.findIndex((incident) => incident.id === request.params.id)
       if (index === -1) return response.status(404).json({ message: 'Incidente não encontrado.' })
       const { status, severity, assignee, service } = request.body as Partial<Incident>
+      const previous = incidents[index]
       if (status && !validStatuses.includes(status)) return response.status(400).json({ message: 'Status inválido.' })
       if (severity && !validSeverities.includes(severity)) return response.status(400).json({ message: 'Severidade inválida.' })
-      incidents[index] = { ...incidents[index], ...(status && { status }), ...(severity && { severity }), ...(assignee && { assignee }), ...(service && { service }), updatedAt: new Date().toISOString() }
+      if (status && status !== previous.status) {
+        try { assertTransition(previous.status, status) } catch (error) { return response.status(409).json({ message: error instanceof Error ? error.message : 'Transição de status inválida.' }) }
+      }
+      incidents[index] = { ...previous, ...(status && { status }), ...(severity && { severity }), ...(assignee && { assignee }), ...(service && { service }), updatedAt: new Date().toISOString() }
       await saveIncidents(incidents)
+      await createIncidentEvent({ legacyId: incidents[index].id, actor: response.locals.user as AuthUser, type: status && status !== previous.status ? 'incident.status_changed' : 'incident.updated', before: previous, after: incidents[index] })
       return response.json(incidents[index])
     } catch (error) { return next(error) }
   })
@@ -128,9 +135,10 @@ export const createApp = () => {
     try {
       const { body } = request.body as Partial<IncidentComment>
       if (!body?.trim()) return response.status(400).json({ message: 'O comentário não pode ficar vazio.' })
-      const author = response.locals.user as AuthUser
-      const incident = await addIncidentComment(request.params.id, author, body.trim())
+      const actor = response.locals.user as AuthUser
+      const incident = await addIncidentComment(request.params.id, actor, body.trim())
       if (!incident) return response.status(404).json({ message: 'Incidente não encontrado.' })
+      await createIncidentEvent({ legacyId: request.params.id, actor, type: 'incident.comment_added', after: { body: body.trim() } })
       return response.status(201).json(incident)
     } catch (error) { return next(error) }
   })
