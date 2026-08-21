@@ -6,7 +6,17 @@ O IncidentBoard é um dashboard operacional para equipes de engenharia registrar
 
 ## Prévia
 
-![Tela de login do IncidentBoard](docs/screenshots/incidentboard-login.webp)
+![Dashboard do IncidentBoard](docs/screenshots/incidentboard-dashboard.png)
+
+As capturas abaixo foram geradas localmente com dados sintéticos, sem deploy público e sem informações reais. O GIF percorre o login, o dashboard e o detalhe de um incidente com SLA e atividade auditável.
+
+![Fluxo principal do IncidentBoard](docs/screenshots/incidentboard-flow.gif)
+
+| Tela | O que demonstra |
+|---|---|
+| ![Tela de login](docs/screenshots/incidentboard-login.webp) | Autenticação e acesso de demonstração local. |
+| ![Dashboard operacional](docs/screenshots/incidentboard-dashboard.png) | Métricas, filtros, tabela de incidentes e indicadores de SLA. |
+| ![Detalhe do incidente](docs/screenshots/incidentboard-incident-detail.png) | SLA violado, transição de status e timeline de atividade. |
 
 A API local é iniciada como um processo separado do frontend. As credenciais de demonstração existem somente para desenvolvimento local e nunca devem ser reutilizadas em produção.
 
@@ -162,6 +172,8 @@ Se aparecer `DATABASE_URL não configurada`, crie o `.env` com `Copy-Item .env.e
 ## Testes e decisões de engenharia
 
 A suíte é dividida entre testes isolados de frontend e testes de integração da API. Os testes de backend usam PostgreSQL real, migrations versionadas e seed idempotente, evitando mascarar problemas de compatibilidade com uma persistência diferente da usada em runtime. Os tipos de domínio estão centralizados em `src/types.ts`, enquanto persistência e regras de negócio ficam isoladas da UI. O projeto utiliza Conventional Commits e não mantém arquivos de banco local versionados.
+
+As principais decisões e os trade-offs estão documentados em [`docs/technical-decisions.md`](docs/technical-decisions.md). Esse documento também reúne perguntas prováveis de entrevista sobre PostgreSQL, autorização, auditoria, SLA, testes e operação.
 
 ## Limitações e próximos passos
 
