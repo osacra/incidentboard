@@ -1,23 +1,57 @@
 import cors from 'cors'
 import express from 'express'
+import { randomUUID } from 'node:crypto'
 import type { Incident, IncidentComment, IncidentSeverity, IncidentStatus } from '../src/types'
 import { authenticate, createAccessToken, createRefreshToken, requestPasswordReset, requireAuth, requireRole, resetPassword, revokeRefreshToken, rotateRefreshToken, type AuthUser } from './auth'
 import { eq } from 'drizzle-orm'
 import { assertTransition } from './domain/incident'
 import { users } from './db/schema'
+import { pool } from './db/client'
 import { db, ensureStore } from './store'
 import { addIncidentComment, createIncidentEvent, getIncident, getIncidents, saveIncidents } from './store'
+
+const loginAttempts = new Map<string, { count: number; resetAt: number }>()
+const loginWindowMs = 60_000
+const maxLoginAttempts = 10
+
+const loginRateLimit = (request: express.Request, response: express.Response, next: express.NextFunction) => {
+  if (process.env.NODE_ENV === 'test') return next()
+  const key = request.ip || 'unknown'
+  const now = Date.now()
+  const current = loginAttempts.get(key)
+  if (!current || current.resetAt <= now) {
+    loginAttempts.set(key, { count: 1, resetAt: now + loginWindowMs })
+    return next()
+  }
+  if (current.count >= maxLoginAttempts) return response.status(429).json({ message: 'Muitas tentativas de login. Tente novamente em um minuto.' })
+  current.count += 1
+  return next()
+}
 
 export const createApp = () => {
   const app = express()
   const validStatuses: IncidentStatus[] = ['open', 'investigating', 'monitoring', 'resolved']
   const validSeverities: IncidentSeverity[] = ['low', 'medium', 'high', 'critical']
+  const allowedOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
 
-  app.use(cors())
-  app.use(express.json())
+  app.use((request, response, next) => {
+    response.setHeader('X-Request-Id', randomUUID())
+    next()
+  })
+  app.use(cors({ origin: allowedOrigin, credentials: true }))
+  app.use(express.json({ limit: '100kb' }))
   app.get('/api/health', (_request, response) => response.json({ status: 'ok', service: 'incidentboard-api' }))
+  app.get('/api/health/live', (_request, response) => response.json({ status: 'ok', service: 'incidentboard-api' }))
+  app.get('/api/health/ready', async (_request, response) => {
+    try {
+      await pool.query('SELECT 1')
+      return response.json({ status: 'ready', database: 'ok' })
+    } catch {
+      return response.status(503).json({ status: 'not_ready', database: 'unavailable' })
+    }
+  })
 
-  app.post('/api/auth/login', async (request, response, next) => {
+  app.post('/api/auth/login', loginRateLimit, async (request, response, next) => {
     const { email, password } = request.body as { email?: string; password?: string }
     if (!email || !password) return response.status(400).json({ message: 'E-mail e senha são obrigatórios.' })
     try {
