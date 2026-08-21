@@ -16,6 +16,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:api": "vitest run server",
+    "test:integration": "npm run db:setup && npm run test:api",
     "test:watch": "vitest",
     "preview": "vite preview"
   },

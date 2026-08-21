@@ -93,13 +93,23 @@ As variáveis estão documentadas em `.env.example`. Nunca versione credenciais 
 
 ### Validação
 
+A validação rápida não precisa de banco e verifica lint, testes isolados e build:
+
 ```powershell
 npm run lint
 npm run test
 npm run build
 ```
 
-Para executar somente os testes da API, use `npm run test:api`.
+Os testes da API usam PostgreSQL. Com Docker em execução e o arquivo `.env` configurado, execute:
+
+```powershell
+npm run test:integration
+```
+
+Esse comando sobe o PostgreSQL, aplica as migrations e executa os testes do backend. Para executar somente os testes da API contra um banco já preparado, use `npm run test:api`.
+
+O mesmo fluxo de banco, lint, testes e build é executado automaticamente pelo GitHub Actions em cada pull request para `main`.
 
 ## API
 
@@ -145,7 +155,7 @@ Se aparecer `DATABASE_URL não configurada`, crie o `.env` com `Copy-Item .env.e
 
 ## Testes e decisões de engenharia
 
-A suíte cobre regras de SLA, geração de identificadores, health checks, autenticação, rotação e revogação de refresh tokens, recuperação de senha, controle de acesso, validação de requisições e consultas de incidentes. Os tipos de domínio estão centralizados em `src/types.ts`, enquanto persistência e regras de negócio ficam isoladas da UI. O projeto utiliza Conventional Commits e não mantém arquivos de banco local versionados.
+A suíte é dividida entre testes isolados de frontend e testes de integração da API. Os testes de backend usam PostgreSQL real, migrations versionadas e seed idempotente, evitando mascarar problemas de compatibilidade com uma persistência diferente da usada em runtime. Os tipos de domínio estão centralizados em `src/types.ts`, enquanto persistência e regras de negócio ficam isoladas da UI. O projeto utiliza Conventional Commits e não mantém arquivos de banco local versionados.
 
 ## Limitações e próximos passos
 
