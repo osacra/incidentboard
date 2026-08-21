@@ -1,7 +1,8 @@
 import type { FormEvent } from 'react'
-import { formatDate, getSlaState } from '../storage'
+import { formatDate, getSlaProgress } from '../storage'
 import type { Incident, IncidentEvent, IncidentStatus } from '../types'
 import { severityLabels, statusLabels } from '../types'
+import SlaProgress from './SlaProgress'
 
 type IncidentDetailsProps = {
   incident: Incident | null
@@ -61,13 +62,13 @@ const fallbackEvents = (incident: Incident): IncidentEvent[] => [
 
 export default function IncidentDetails({ incident, onStatusChange, onComment }: IncidentDetailsProps) {
   if (!incident) return <aside className="details-panel panel-card empty-details"><span>◈</span><h3>Selecione um incidente</h3><p>Escolha um item da tabela para ver os detalhes.</p></aside>
-  const sla = getSlaState(incident)
+  const sla = getSlaProgress(incident)
   const events = incident.activity?.length ? incident.activity : fallbackEvents(incident)
 
   return <aside className="details-panel panel-card">
     <div className="details-heading"><div><span className={`badge severity-${incident.severity}`}><i />{severityLabels[incident.severity]}</span><h2>{incident.title}</h2><p>{incident.id} · Criado {formatDate(incident.createdAt)}</p></div></div>
     <div className="details-description"><p>{incident.description}</p></div>
-    <div className="detail-meta"><div><span>Serviço</span><strong>{incident.service}</strong></div><div><span>Responsável</span><strong>{incident.assignee}</strong></div><div><span>SLA</span><strong className={`sla ${sla.tone}`}>{sla.label}</strong></div></div>
+    <div className="detail-meta"><div><span>Serviço</span><strong>{incident.service}</strong></div><div><span>Responsável</span><strong>{incident.assignee}</strong></div><div><span>SLA</span><SlaProgress progress={sla} /></div></div>
     <div className="status-control"><span>Status atual</span><select value={incident.status} onChange={(event) => onStatusChange(event.target.value as IncidentStatus)}>{Object.entries(statusLabels).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></div>
     <div className="activity">
       <div className="activity-header"><h3>Atividade</h3><span>{events.length} evento{events.length === 1 ? '' : 's'}</span></div>
