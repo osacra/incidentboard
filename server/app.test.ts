@@ -5,11 +5,21 @@ import { createApp } from './app'
 const app = createApp()
 
 describe('IncidentBoard API', () => {
-  it('responde ao health check', async () => {
+  it('responde aos health checks e envia request ID', async () => {
     const response = await request(app).get('/api/health')
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ status: 'ok', service: 'incidentboard-api' })
+    expect(response.headers['x-request-id']).toEqual(expect.any(String))
+
+    const live = await request(app).get('/api/health/live')
+    expect(live.status).toBe(200)
+    expect(live.body).toEqual({ status: 'ok', service: 'incidentboard-api' })
+
+    const ready = await request(app).get('/api/health/ready')
+    expect(ready.status).toBe(200)
+    expect(ready.body).toEqual({ status: 'ready', database: 'ok' })
   })
+
 
   it('faz login com a conta de demonstração', async () => {
     const response = await request(app).post('/api/auth/login').send({ email: 'demo@incidentboard.local', password: 'incidentboard' })
