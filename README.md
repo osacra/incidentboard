@@ -173,7 +173,7 @@ Se aparecer `DATABASE_URL não configurada`, crie o `.env` com `Copy-Item .env.e
 
 A suíte é dividida entre testes isolados de frontend e testes de integração da API. Os testes de backend usam PostgreSQL real, migrations versionadas e seed idempotente, evitando mascarar problemas de compatibilidade com uma persistência diferente da usada em runtime. Os tipos de domínio estão centralizados em `src/types.ts`, enquanto persistência e regras de negócio ficam isoladas da UI. O projeto utiliza Conventional Commits e não mantém arquivos de banco local versionados.
 
-As principais decisões e os trade-offs estão documentados em [`docs/technical-decisions.md`](docs/technical-decisions.md). Esse documento também reúne perguntas prováveis de entrevista sobre PostgreSQL, autorização, auditoria, SLA, testes e operação.
+As principais decisões e os trade-offs estão documentados em [`docs/technical-decisions.md`](docs/technical-decisions.md), com seus impactos sobre PostgreSQL, autorização, auditoria, SLA, testes e operação.
 
 ## Limitações e próximos passos
 
