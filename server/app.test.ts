@@ -88,6 +88,25 @@ describe('IncidentBoard API', () => {
     expect(detailResponse.body.id).toBe(listResponse.body[0].id)
   })
 
+  it('persiste comentários e usa a autoria da sessão autenticada', async () => {
+    const login = await request(app).post('/api/auth/login').send({ email: 'demo@incidentboard.local', password: 'incidentboard' })
+    const token = login.body.token as string
+    const incidents = await request(app).get('/api/incidents').set('Authorization', `Bearer ${token}`)
+    const incidentId = incidents.body[0].id as string
+
+    const created = await request(app)
+      .post(`/api/incidents/${incidentId}/comments`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ author: 'Usuário forjado', body: 'Investigação iniciada' })
+
+    expect(created.status).toBe(201)
+    expect(created.body.comments.at(-1)).toMatchObject({ author: 'Demo Operator', body: 'Investigação iniciada' })
+
+    const reloaded = await request(app).get(`/api/incidents/${incidentId}`).set('Authorization', `Bearer ${token}`)
+    expect(reloaded.status).toBe(200)
+    expect(reloaded.body.comments).toContainEqual(expect.objectContaining({ author: 'Demo Operator', body: 'Investigação iniciada' }))
+  })
+
   afterAll(async () => {
     // A API não abre listener durante os testes; este hook deixa o ciclo explícito.
   })
