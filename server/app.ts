@@ -9,24 +9,9 @@ import { users } from './db/schema'
 import { pool } from './db/client'
 import { db, ensureStore } from './store'
 import { addIncidentComment, createIncidentEvent, getIncident, getIncidents, saveIncidents } from './store'
+import { createLoginRateLimit } from './security'
 
-const loginAttempts = new Map<string, { count: number; resetAt: number }>()
-const loginWindowMs = 60_000
-const maxLoginAttempts = 10
-
-const loginRateLimit = (request: express.Request, response: express.Response, next: express.NextFunction) => {
-  if (process.env.NODE_ENV === 'test') return next()
-  const key = request.ip || 'unknown'
-  const now = Date.now()
-  const current = loginAttempts.get(key)
-  if (!current || current.resetAt <= now) {
-    loginAttempts.set(key, { count: 1, resetAt: now + loginWindowMs })
-    return next()
-  }
-  if (current.count >= maxLoginAttempts) return response.status(429).json({ message: 'Muitas tentativas de login. Tente novamente em um minuto.' })
-  current.count += 1
-  return next()
-}
+const loginRateLimit = createLoginRateLimit()
 
 export const createApp = () => {
   const app = express()
