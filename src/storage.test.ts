@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getSlaState, nextIncidentId } from './storage'
+import { getSlaProgress, getSlaState, nextIncidentId } from './storage'
 import type { Incident } from './types'
 
 const incident = (overrides: Partial<Incident> = {}): Incident => ({
@@ -18,6 +18,20 @@ describe('regras de incidentes', () => {
 
   it('informa quando o SLA foi estourado', () => {
     expect(getSlaState(incident({ createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), slaHours: 8 }))).toEqual({ label: 'SLA estourado', tone: 'danger' })
+  })
+
+  it('calcula estados e percentual de SLA com um relógio determinístico', () => {
+    const createdAt = Date.parse('2026-01-01T00:00:00.000Z')
+    const base = incident({ createdAt: new Date(createdAt).toISOString(), slaHours: 8 })
+
+    expect(getSlaProgress(base, createdAt + 2 * 60 * 60 * 1000)).toMatchObject({ status: 'on_track', percentage: 25 })
+    expect(getSlaProgress(base, createdAt + 9 * 60 * 60 * 1000)).toMatchObject({ status: 'breached', percentage: 100, remainingHours: 0 })
+    expect(getSlaProgress({ ...base, status: 'resolved' }, createdAt + 2 * 60 * 60 * 1000)).toMatchObject({ status: 'met', tone: 'success' })
+  })
+
+  it('classifica o SLA em risco no último quarto do prazo', () => {
+    const createdAt = Date.parse('2026-01-01T00:00:00.000Z')
+    expect(getSlaProgress(incident({ createdAt: new Date(createdAt).toISOString(), slaHours: 8 }), createdAt + 7 * 60 * 60 * 1000)).toMatchObject({ status: 'at_risk', percentage: 87.5 })
   })
 
   it('salva e carrega incidentes do armazenamento local', async () => {

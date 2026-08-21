@@ -84,13 +84,32 @@ export const formatDate = (date: string) => new Intl.DateTimeFormat('pt-BR', {
   minute: '2-digit',
 }).format(new Date(date))
 
+export type SlaStatus = 'on_track' | 'at_risk' | 'breached' | 'met'
+
+export type SlaProgress = {
+  status: SlaStatus
+  label: string
+  tone: 'success' | 'warning' | 'danger'
+  percentage: number
+  remainingHours: number
+}
+
+export const getSlaProgress = (incident: Incident, now = Date.now()): SlaProgress => {
+  const createdAt = new Date(incident.createdAt).getTime()
+  const durationHours = Math.max(incident.slaHours, 1)
+  const deadline = createdAt + durationHours * 60 * 60 * 1000
+  const remainingHours = (deadline - now) / (60 * 60 * 1000)
+  const percentage = Math.min(100, Math.max(0, ((now - createdAt) / (durationHours * 60 * 60 * 1000)) * 100))
+
+  if (incident.status === 'resolved') return { status: 'met', label: 'Encerrado', tone: 'success', percentage, remainingHours: Math.max(0, remainingHours) }
+  if (remainingHours <= 0) return { status: 'breached', label: 'SLA estourado', tone: 'danger', percentage: 100, remainingHours: 0 }
+  if (remainingHours <= durationHours * 0.25) return { status: 'at_risk', label: `${Math.ceil(remainingHours)}h restantes`, tone: 'warning', percentage, remainingHours }
+  return { status: 'on_track', label: `${Math.ceil(remainingHours)}h restantes`, tone: 'success', percentage, remainingHours }
+}
+
 export const getSlaState = (incident: Incident) => {
-  if (incident.status === 'resolved') return { label: 'Encerrado', tone: 'success' }
-  const deadline = new Date(incident.createdAt).getTime() + incident.slaHours * 60 * 60 * 1000
-  const remainingHours = (deadline - Date.now()) / (60 * 60 * 1000)
-  if (remainingHours <= 0) return { label: 'SLA estourado', tone: 'danger' }
-  if (remainingHours <= incident.slaHours * 0.25) return { label: `${Math.ceil(remainingHours)}h restantes`, tone: 'warning' }
-  return { label: `${Math.ceil(remainingHours)}h restantes`, tone: 'success' }
+  const { label, tone } = getSlaProgress(incident)
+  return { label, tone }
 }
 
 export const nextIncidentId = (incidents: Incident[]) => {

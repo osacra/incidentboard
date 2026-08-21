@@ -36,3 +36,18 @@ button { cursor: pointer; }
 .timeline-dot.amber { background: var(--amber); box-shadow: 0 0 0 3px #fff3df; }
 .timeline-dot.red { background: var(--red); box-shadow: 0 0 0 3px #ffeaed; }
 .timeline-dot.green { background: var(--green); box-shadow: 0 0 0 3px #e6f8f0; }
+
+.sla-progress { min-width: 0; }
+.sla-progress-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.sla-progress-heading span { color: #8993a5; font-size: 9px; }
+.sla-progress-heading strong { color: #5e687c; font-size: 10px; white-space: nowrap; }
+.sla-progress-track { height: 6px; overflow: hidden; border-radius: 999px; background: #edf0f4; }
+.sla-progress-track span { display: block; height: 100%; border-radius: inherit; transition: width .25s ease; }
+.sla-progress small { display: block; color: #a4acba; font-size: 9px; margin-top: 5px; }
+.sla-progress.success .sla-progress-track span { background: var(--green); }
+.sla-progress.warning .sla-progress-track span { background: var(--amber); }
+.sla-progress.danger .sla-progress-track span { background: var(--red); }
+.sla-progress.compact { min-width: 105px; }
+.sla-progress.compact .sla-progress-heading { margin-bottom: 4px; }
+.sla-progress.compact .sla-progress-heading span { display: none; }
+.sla-progress.compact .sla-progress-heading strong { font-size: 9px; }
