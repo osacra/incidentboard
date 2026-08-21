@@ -1,12 +1,12 @@
 # IncidentBoard
 
-IncidentBoard é um dashboard operacional para equipes de engenharia registrarem, priorizarem e acompanharem incidentes técnicos. O projeto modela um fluxo realista de gerenciamento de incidentes com severidade, status, visibilidade de SLA, responsáveis, comentários e histórico de atividade.
+O IncidentBoard é um dashboard operacional para equipes de engenharia registrarem, priorizarem e acompanharem incidentes técnicos. O projeto modela um fluxo de gerenciamento de incidentes com severidade, status, visibilidade de SLA, responsáveis, comentários e histórico de atividade.
 
 > **Projeto de portfólio:** a versão atual demonstra modelagem de domínio, TypeScript full-stack, autenticação, persistência relacional, regras de negócio, interface responsiva, testes automatizados e CI.
 
-## Preview
+## Prévia
 
-![IncidentBoard login screen](docs/screenshots/incidentboard-login.webp)
+![Tela de login do IncidentBoard](docs/screenshots/incidentboard-login.webp)
 
 A API local é iniciada como um processo separado do frontend. As credenciais de demonstração existem somente para desenvolvimento local e nunca devem ser reutilizadas em produção.
 
@@ -19,9 +19,9 @@ A API local é iniciada como um processo separado do frontend. As credenciais de
 - Detalhes do incidente com comentários e histórico.
 - Persistência em PostgreSQL 17 com Drizzle ORM e migrations versionadas.
 - Autenticação JWT com access tokens curtos e refresh tokens rotativos.
-- RBAC com os papéis `admin`, `operator` e `viewer`.
+- Controle de acesso baseado em papéis, com `admin`, `operator` e `viewer`.
 - Recuperação de senha local, com token exposto somente fora de produção.
-- REST API para health check, usuários, autenticação e operações de incidentes.
+- API REST para health check, usuários, autenticação e operações de incidentes.
 
 ## Arquitetura
 
@@ -31,13 +31,13 @@ A aplicação é organizada em um frontend React e uma API Express. A API isola 
 React 19 + TypeScript + Vite + React Router + Zustand + Tailwind CSS v4
                               |
                               v
-                   Express 5 + JWT + RBAC
+                   Express 5 + JWT + controle de acesso
                               |
                               v
-              Drizzle ORM + PostgreSQL 17 via Docker
+                   Drizzle ORM + PostgreSQL 17 via Docker
 ```
 
-O frontend não persiste incidentes localmente. Se o PostgreSQL ou a API estiver indisponível, a aplicação informa o problema de conexão em vez de alternar silenciosamente para SQLite ou localStorage.
+O frontend não persiste incidentes localmente. Se o PostgreSQL ou a API estiver indisponível, a aplicação informa o problema de conexão em vez de alternar silenciosamente para SQLite ou `localStorage`.
 
 ## Stack tecnológica
 
@@ -47,9 +47,9 @@ O frontend não persiste incidentes localmente. Se o PostgreSQL ou a API estiver
 | Backend | Node.js, Express 5, TypeScript |
 | Persistência | PostgreSQL 17, Drizzle ORM, migrations SQL versionadas |
 | Runtime local | Docker Compose |
-| Qualidade | Vitest, Supertest, Testing Library, ESLint, TypeScript build |
-| Segurança | JWT, refresh token rotation, RBAC, bcrypt e segredos por ambiente |
-| CI | GitHub Actions com PostgreSQL, migrations, lint, testes e build |
+| Qualidade | Vitest, Supertest, Testing Library, ESLint, build TypeScript |
+| Segurança | JWT, rotação de refresh token, controle de acesso, bcrypt e segredos por ambiente |
+| Integração contínua | GitHub Actions com PostgreSQL, migrations, lint, testes e build |
 
 ## Execução local
 
@@ -57,19 +57,27 @@ O frontend não persiste incidentes localmente. Se o PostgreSQL ou a API estiver
 
 - Node.js 20 ou superior.
 - npm 10 ou superior.
-- Docker Desktop instalado e em execução. PostgreSQL é obrigatório para a API.
+- Docker Desktop instalado e em execução. O PostgreSQL é obrigatório para a API.
 
 ### Instalação e inicialização
 
 No PowerShell:
 
 ```powershell
+git clone https://github.com/osacra/incidentboard.git
+cd incidentboard
 npm install
 Copy-Item .env.example .env
 npm run dev
 ```
 
-`npm run dev` inicia o PostgreSQL via Docker Compose, aplica as migrations do Drizzle e inicia a API e o frontend. O frontend fica normalmente em `http://localhost:5173` e a API em `http://localhost:3001`.
+O comando `npm run dev` inicia o PostgreSQL via Docker Compose, aplica as migrations do Drizzle e inicia a API e o frontend. O frontend fica normalmente em `http://localhost:5173` e a API em `http://localhost:3001`.
+
+Em Linux ou macOS, o equivalente para copiar o arquivo de ambiente é:
+
+```bash
+cp .env.example .env
+```
 
 Para executar as etapas separadamente:
 
@@ -79,7 +87,9 @@ npm run db:migrate
 npm run dev:api
 ```
 
-Para desenvolvimento normal, use o comando único `npm run dev`. As variáveis estão documentadas em `.env.example`. Nunca versione credenciais reais ou segredos de produção.
+O comando `npm run dev:api` executa novamente a preparação do banco antes de iniciar a API. Por isso, no desenvolvimento normal, basta usar `npm run dev`; não é necessário executar `db:setup` manualmente antes dele.
+
+As variáveis estão documentadas em `.env.example`. Nunca versione credenciais reais ou segredos de produção.
 
 ### Validação
 
@@ -88,6 +98,8 @@ npm run lint
 npm run test
 npm run build
 ```
+
+Para executar somente os testes da API, use `npm run test:api`.
 
 ## API
 
@@ -123,10 +135,9 @@ docker version
 docker compose ps
 ```
 
-Depois execute:
+Depois, execute novamente:
 
 ```powershell
-npm run db:setup
 npm run dev
 ```
 
@@ -134,10 +145,10 @@ Se aparecer `DATABASE_URL não configurada`, crie o `.env` com `Copy-Item .env.e
 
 ## Testes e decisões de engenharia
 
-A suíte cobre regras de SLA, geração de identificadores, health checks, autenticação, rotação e revogação de refresh tokens, recuperação de senha, RBAC, validação de requisições e consultas de incidentes. Os tipos de domínio estão centralizados em `src/types.ts`, enquanto persistência e regras de negócio ficam isoladas da UI. O projeto utiliza Conventional Commits e não mantém arquivos de banco local versionados.
+A suíte cobre regras de SLA, geração de identificadores, health checks, autenticação, rotação e revogação de refresh tokens, recuperação de senha, controle de acesso, validação de requisições e consultas de incidentes. Os tipos de domínio estão centralizados em `src/types.ts`, enquanto persistência e regras de negócio ficam isoladas da UI. O projeto utiliza Conventional Commits e não mantém arquivos de banco local versionados.
 
 ## Limitações e próximos passos
 
-PostgreSQL é obrigatório em runtime; não existe fallback para SQLite. A recuperação de senha atualmente é local e expõe o token somente em ambiente não produtivo, para permitir teste manual sem configurar um provedor de e-mail.
+O PostgreSQL é obrigatório em runtime; não existe fallback para SQLite. A recuperação de senha atualmente é local e expõe o token somente em ambiente não produtivo, para permitir teste manual sem configurar um provedor de e-mail.
 
 Os próximos incrementos recomendados são entrega de e-mail para recuperação em produção, convite de usuários, observabilidade, notificações, webhooks, paginação, ordenação, exportação de relatórios e deploy automatizado na plataforma escolhida.
