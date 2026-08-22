@@ -26,7 +26,12 @@ function App() {
   const [loginEmail, setLoginEmail] = useState('demo@incidentboard.local')
   const [loginPassword, setLoginPassword] = useState('incidentboard')
   const [loginError, setLoginError] = useState('')
-  const [recoveryMessage, setRecoveryMessage] = useState('')
+    const [recoveryMessage, setRecoveryMessage] = useState('')
+  const [recoveryMode, setRecoveryMode] = useState<'login' | 'request' | 'reset'>('login')
+  const [recoveryToken, setRecoveryToken] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+
   const navigate = useNavigate()
   const location = useLocation()
   const { incidentId } = useParams<{ incidentId: string }>()
@@ -71,17 +76,27 @@ function App() {
     try { const result = await api.login(loginEmail, loginPassword); session.setSession(result); setUser(result.user); const remoteIncidents = await api.listIncidents(); setIncidents(remoteIncidents); setSelectedId(remoteIncidents[0]?.id ?? null); setApiConnected(true); showToast('Sessão iniciada') } catch (error) { setLoginError(error instanceof Error ? error.message : 'Não foi possível entrar') }
   }
   const logout = async () => { await api.logout().catch(() => undefined); setUser(null); showToast('Sessão encerrada') }
-  const forgotPassword = async () => {
+    const openForgotPassword = () => { setLoginError(''); setRecoveryMessage(''); setRecoveryMode('request') }
+  const requestRecovery = async () => {
     setLoginError(''); setRecoveryMessage('')
     try {
       const result = await api.forgotPassword(loginEmail)
-      if (result.resetToken) {
-        setRecoveryMessage(`Token local gerado: ${result.resetToken}`)
-      } else {
-        setRecoveryMessage(result.message)
-      }
+      setRecoveryToken(result.resetToken ?? '')
+      setRecoveryMessage(result.resetToken ? `Token local gerado: ${result.resetToken}` : result.message)
+      if (result.resetToken) setRecoveryMode('reset')
     } catch (error) { setLoginError(error instanceof Error ? error.message : 'Não foi possível gerar a recuperação') }
   }
+  const resetPassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setLoginError('')
+    if (newPassword !== confirmPassword) { setLoginError('As senhas não coincidem'); return }
+    try {
+      await api.resetPassword(recoveryToken, newPassword)
+      setRecoveryMessage('Senha redefinida com sucesso. Entre com a nova senha.')
+      setRecoveryToken(''); setNewPassword(''); setConfirmPassword(''); setLoginPassword(''); setRecoveryMode('login')
+    } catch (error) { setLoginError(error instanceof Error ? error.message : 'Não foi possível redefinir a senha') }
+  }
+  const backToLogin = () => { setLoginError(''); setRecoveryMessage(''); setRecoveryToken(''); setNewPassword(''); setConfirmPassword(''); setRecoveryMode('login') }
+
   const showToast = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2800) }
   const updateIncident = async (id: string, changes: Partial<Incident>) => {
     try {
@@ -110,7 +125,7 @@ function App() {
     } catch (error) { showToast(error instanceof Error ? error.message : 'Não foi possível adicionar o comentário') }
   }
 
-  if (!user) return <LoginScreen email={loginEmail} password={loginPassword} error={loginError} recoveryMessage={recoveryMessage} onEmailChange={setLoginEmail} onPasswordChange={setLoginPassword} onSubmit={login} onForgotPassword={forgotPassword} />
+  if (!user) return <LoginScreen email={loginEmail} password={loginPassword} recoveryToken={recoveryToken} newPassword={newPassword} confirmPassword={confirmPassword} mode={recoveryMode} error={loginError} recoveryMessage={recoveryMessage} onEmailChange={setLoginEmail} onPasswordChange={setLoginPassword} onRecoveryTokenChange={setRecoveryToken} onNewPasswordChange={setNewPassword} onConfirmPasswordChange={setConfirmPassword} onSubmit={login} onForgotPassword={openForgotPassword} onRequestRecovery={requestRecovery} onResetPassword={resetPassword} onBackToLogin={backToLogin} />
 
   return <div className="app-shell">
     <aside className="sidebar">
